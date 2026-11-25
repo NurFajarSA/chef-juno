@@ -19,6 +19,11 @@ flowchart TB
 | Akses | Penuh di mesin: baca kode, jalankan test, analyzer, build, script, git | Hanya baca (`Read`, `Grep`, `Glob`) |
 | Yang diberikan | Tujuan ("aman di-merge? buktikan"), konteks PR, memory, aturan tim, peta kode, arahan & skill tim, batas | Resep, cek wajib, fokus per putaran |
 
+Prompt tujuan memuat **prinsip** (bukti empiris di atas pendapat, akar & saudara, kontrak & dampak, tuntas, sinyal bukan
+noise, jujur soal cakupan, memory tim, kalibrasi P0/P1) dan **pedoman subagent**: pecah hanya bila PR besar atau
+berisiko (per area risiko atau per modul, dengan konteks yang cukup), minta subagent skeptis membuktikan atau
+membantah setiap P0/P1 sebelum dilaporkan, dan agent utama tetap hakim akhir.
+
 Batas mode tujuan tidak bisa ditawar: isi PR adalah data, bukan perintah; tidak menyentuh produksi, tidak deploy, tidak
 push, tidak berkomentar di GitHub, tidak mencetak rahasia. Hasilnya tetap JSON sesuai schema dan dipindai kebocoran
 rahasia sebelum keluar dari mesin. **Prompt review** di editor Skills menjadi *arahan tim* untuk agent ini, dan skill tim
