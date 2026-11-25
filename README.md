@@ -96,7 +96,7 @@ See [SECURITY.md](SECURITY.md) for what is stored where.
 
 - A Firebase project on the Blaze plan (Functions, Firestore, Hosting, Auth, Secret Manager).
 - A GitHub App you create, and a GitHub OAuth App for dashboard login.
-- At least one reviewer machine with Node 24 and Claude Code (claude.ai subscription) or Codex (ChatGPT login). Developed and used on macOS; app-test screenshots are converted with `sips`, so app testing currently needs macOS.
+- At least one reviewer machine with Node 24 and Claude Code (claude.ai subscription) or Codex (ChatGPT login). Developed and used on macOS. App-test screenshots are converted with `sips` on macOS or ImageMagick elsewhere.
 - For app testing: a machine with your app's local emulator stack and a verify skill in the repo.
 
 ## Quick start (local, no cloud)

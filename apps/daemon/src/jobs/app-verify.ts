@@ -447,14 +447,17 @@ export async function cleanupOrphanAppRuns(log: (m: string) => void): Promise<nu
 /** Screenshot apa pun → JPEG ≤ 1280 px (sips di macOS); JPEG kecil dipakai apa adanya. */
 async function toJpeg(src: string, dst: string): Promise<string | null> {
   if (/\.jpe?g$/i.test(src) && statSync(src).size <= MAX_SHOT_BYTES) return src;
-  const r = await runProc(
-    'sips',
-    ['-s', 'format', 'jpeg', '-s', 'formatOptions', '70', '-Z', '1280', src, '--out', dst],
-    {
-      timeoutMs: 30_000,
-    },
-  ).catch(() => null);
-  return r && r.code === 0 && existsSync(dst) ? dst : null;
+  // macOS: sips bawaan; Linux/lainnya: ImageMagick (magick v7 atau convert v6)
+  const tools: [string, string[]][] = [
+    ['sips', ['-s', 'format', 'jpeg', '-s', 'formatOptions', '70', '-Z', '1280', src, '--out', dst]],
+    ['magick', [src, '-resize', '1280x1280>', '-quality', '70', dst]],
+    ['convert', [src, '-resize', '1280x1280>', '-quality', '70', dst]],
+  ];
+  for (const [bin, args] of tools) {
+    const r = await runProc(bin, args, { timeoutMs: 30_000 }).catch(() => null);
+    if (r && r.code === 0 && existsSync(dst)) return dst;
+  }
+  return null;
 }
 
 /** Batas ukuran satu screenshot di Firestore (dokumen maks 1 MiB). */
