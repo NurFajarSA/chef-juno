@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import {
   DOCS_CHECK,
   TRACE_CHECK,
+  buildPrBrief,
   parseSkillMd,
   renderSkillsForPrompt,
   skillAppliesTo,
@@ -173,12 +174,13 @@ export async function runReviewJob(ctx: JobContext) {
       const [a, d, f] = l.split('\t');
       if (f) numstat.set(f, a === '-' ? 'biner' : `+${a} −${d}`);
     }
-    const prBrief = [
-      `# PR #${pr.number}: ${pr.title}`,
-      String(pr.body ?? '').slice(0, 4000),
-      `## File yang berubah (${files.length})`,
-      ...files.slice(0, 300).map((f) => `- ${f}${numstat.has(f) ? ` (${numstat.get(f)})` : ''}`),
-    ].join('\n');
+    // deskripsi bertemplate → bagian terstruktur (alur yang diubah, cara mencoba) untuk reviewer & penguji
+    const prBrief = buildPrBrief({
+      number: pr.number,
+      title: pr.title,
+      body: pr.body,
+      files: files.map((f) => ({ path: f, stat: numstat.get(f) ?? null })),
+    });
 
     // Satu standar: semua PR direview penuh (putaran spesialis + validasi + reviewer akhir) dan diuji di aplikasi;
     // hanya perubahan remeh (dokumentasi saja, aturan path) yang direview ringan tanpa uji aplikasi.
