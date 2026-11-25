@@ -1,0 +1,15 @@
+{
+  "action": "added",
+  "installation": {
+    "id": 777
+  },
+  "repositories_added": [
+    {
+      "id": 4242,
+      "name": "sample-repo",
+      "full_name": "tim/sample-repo",
+      "private": true
+    }
+  ],
+  "repositories_removed": []
+}

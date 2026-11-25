@@ -1,0 +1,6 @@
+**/dist
+**/lib
+**/node_modules
+apps/daemon/test/fixtures
+apps/functions/test/fixtures
+scripts/guard-tests.mjs

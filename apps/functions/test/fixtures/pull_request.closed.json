@@ -1,0 +1,40 @@
+{
+  "action": "closed",
+  "number": 1,
+  "pull_request": {
+    "number": 1,
+    "title": "feat: cache option untuk fetchUser",
+    "state": "closed",
+    "merged": true,
+    "merge_commit_sha": null,
+    "user": {
+      "login": "dev2",
+      "id": 2002
+    },
+    "head": {
+      "sha": "HEAD_SHA",
+      "ref": "feat/cache-user"
+    },
+    "base": {
+      "sha": "BASE_SHA",
+      "ref": "main"
+    }
+  },
+  "repository": {
+    "id": 4242,
+    "node_id": "R_fake",
+    "name": "sample-repo",
+    "full_name": "tim/sample-repo",
+    "private": true,
+    "owner": {
+      "login": "tim",
+      "id": 9000,
+      "type": "Organization"
+    },
+    "html_url": "https://github.example/tim/sample-repo",
+    "default_branch": "main"
+  },
+  "installation": {
+    "id": 777
+  }
+}

@@ -1,0 +1,30 @@
+node_modules/
+dist/
+.angular/
+coverage/
+playwright-report/
+test-results/
+apps/functions/lib/
+*.log
+.DS_Store
+.env
+.env.local
+.secret.local
+**/.secret.local
+*.pem
+.firebase/
+apps/daemon/dist/
+packages/shared/dist/
+firebase-debug*.log
+firestore-debug.log
+ui-debug.log
+.chefjuno-demo/
+_peek.mjs
+# param Functions per project produksi (salin dari apps/functions/.env.example)
+apps/functions/.env.*
+!apps/functions/.env.demo-chefjuno
+!apps/functions/.env.example
+# per instalasi: alias project & target Hosting (salin dari .firebaserc.example)
+.firebaserc
+# keluaran demo & screenshot lokal (gambar README ada di docs/images)
+docs/evidence/

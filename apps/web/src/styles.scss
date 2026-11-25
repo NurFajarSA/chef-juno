@@ -1,0 +1,403 @@
+@use '@angular/material' as mat;
+
+html {
+  color-scheme: light dark;
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        theme-type: color-scheme,
+      ),
+      typography: (
+        plain-family: 'Google Sans Variable',
+        brand-family: 'Google Sans Variable',
+      ),
+      density: 0,
+    )
+  );
+  @include mat.button-overrides(
+    (
+      filled-container-shape: 999px,
+      tonal-container-shape: 999px,
+      outlined-container-shape: 999px,
+      text-container-shape: 999px,
+    )
+  );
+  @include mat.table-overrides(
+    (
+      background-color: transparent,
+    )
+  );
+  @include mat.card-overrides(
+    (
+      elevated-container-shape: 24px,
+      outlined-container-shape: 24px,
+    )
+  );
+}
+
+html.theme-light {
+  color-scheme: light;
+}
+html.theme-dark {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--mat-sys-surface-container);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+  font-family: 'Google Sans Variable', system-ui, sans-serif;
+}
+
+code,
+pre,
+.mono {
+  font-family: 'Google Sans Code Variable', ui-monospace, monospace;
+}
+
+a {
+  color: var(--mat-sys-primary);
+}
+
+:focus-visible {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: 2px;
+}
+
+.cj-card {
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  border-radius: 24px;
+  padding: 24px;
+}
+
+.cj-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.cj-muted {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.cj-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--mat-sys-surface);
+  border-radius: 24px;
+  padding: 4px 8px;
+}
+/* Tabel lebar tidak diperas di layar sempit: gulir horizontal */
+.cj-table-wrap > table {
+  width: 100%;
+  min-width: 760px;
+}
+
+.cj-row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.cj-skeleton {
+  background: var(--mat-sys-surface-container-high);
+  border-radius: 12px;
+  min-height: 20px;
+  animation: cj-pulse 1.4s ease-in-out infinite;
+}
+@keyframes cj-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Layar sempit: kartu statistik 2 kolom, padding lebih kecil */
+@media (max-width: 600px) {
+  .cj-grid.stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px;
+  }
+  .cj-grid.stats .cj-card {
+    padding: 16px;
+  }
+  .cj-card {
+    padding: 16px;
+    border-radius: 20px;
+  }
+}
+
+/* ---------- Blok tata letak (fitur & layout terinspirasi Greptile, gaya tetap M3) ---------- */
+.cj-section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: var(--mat-sys-title-medium);
+  margin: 8px 0 12px;
+}
+.cj-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--mat-sys-outline-variant);
+}
+.cj-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cj-stat .label {
+  color: var(--mat-sys-on-surface-variant);
+}
+.cj-stat .value {
+  font: var(--mat-sys-display-small);
+}
+.cj-stat .sub {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+table.cj-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+table.cj-table th {
+  text-align: left;
+  font: var(--mat-sys-label-large);
+  color: var(--mat-sys-on-surface-variant);
+}
+table.cj-table th,
+table.cj-table td {
+  padding: 12px 16px;
+  vertical-align: middle;
+}
+/* garis di level baris (bukan sel) supaya tidak terpotong setengah piksel di kolom berisi tombol */
+table.cj-table tr {
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+table.cj-table tbody tr:last-child {
+  border-bottom: 0;
+}
+table.cj-table tbody tr.clickable {
+  cursor: pointer;
+}
+table.cj-table tbody tr:hover td {
+  background: var(--mat-sys-surface-container-low);
+}
+.cj-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 20px;
+  border-radius: 999px;
+  background: var(--mat-sys-surface);
+  flex: 1;
+  min-width: 200px;
+}
+.cj-search input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  flex: 1;
+  min-width: 0;
+}
+.cj-search .material-symbols-rounded {
+  color: var(--mat-sys-on-surface-variant);
+}
+.cj-seg {
+  display: inline-flex;
+  gap: 8px;
+}
+.cj-seg button,
+.cj-seg a {
+  text-decoration: none;
+  border: 0;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-large);
+  padding: 10px 22px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cj-seg button.on,
+.cj-seg a.on {
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+  font-weight: 600;
+}
+.cj-seg .material-symbols-rounded {
+  font-size: 18px;
+}
+.cj-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.cj-suggest button {
+  border: 1px solid var(--mat-sys-outline-variant);
+  background: transparent;
+  color: var(--mat-sys-on-surface-variant);
+  border-radius: 8px;
+  padding: 4px 12px;
+  font: var(--mat-sys-label-large);
+  cursor: pointer;
+}
+.cj-suggest button b {
+  color: var(--mat-sys-on-surface);
+  font-weight: 600;
+}
+.cj-suggest button.on {
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+  border-color: transparent;
+}
+select.cj-select {
+  height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-label-large);
+  cursor: pointer;
+}
+.cj-prose {
+  line-height: 1.7;
+  font: var(--mat-sys-body-large);
+  max-width: 900px;
+}
+.cj-prose h1 {
+  font: var(--mat-sys-headline-medium);
+  margin: 4px 0 16px;
+}
+.cj-prose h2 {
+  font: var(--mat-sys-title-large);
+  margin: 28px 0 8px;
+}
+
+/* baris pengaturan ala Foresight: label + deskripsi di kiri, kontrol di kanan */
+.cj-rows {
+  background: var(--mat-sys-surface);
+  border-radius: 24px;
+  overflow: hidden;
+}
+.cj-rows > .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  flex-wrap: wrap;
+}
+.cj-rows > .row:last-child {
+  border-bottom: 0;
+}
+.cj-rows .row .t {
+  font: var(--mat-sys-title-medium);
+}
+.cj-rows .row .d {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
+  margin-top: 2px;
+}
+.cj-h2 {
+  font: var(--mat-sys-headline-small);
+  margin: 32px 0 4px;
+}
+.cj-h2 + p {
+  margin: 0 0 16px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+/* menu akun ala Foresight (panel mat-menu dirender di overlay → gaya global) */
+.cj-acct-menu.mat-mdc-menu-panel {
+  min-width: 320px;
+  max-width: 380px;
+  border-radius: 24px;
+  padding: 8px;
+}
+.cj-acct-menu .acct-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 14px;
+  margin-bottom: 4px;
+  border-radius: 20px;
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+.cj-acct-menu .initial {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--mat-sys-primary);
+  color: var(--mat-sys-on-primary);
+  font: var(--mat-sys-title-large);
+}
+.cj-acct-menu .who {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.cj-acct-menu .out {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.cj-acct-menu .out:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+.cj-acct-menu .mat-mdc-menu-item {
+  border-radius: 999px;
+  gap: 12px;
+}
+.cj-acct-menu .mat-mdc-menu-item .material-symbols-rounded {
+  margin-right: 12px;
+  vertical-align: middle;
+}
+
+/* panel dropdown cj-select (overlay → gaya global) */
+.cj-select-panel.mat-mdc-menu-panel {
+  border-radius: 16px;
+  min-width: 220px;
+  padding: 6px 0;
+}
+.cj-select-panel .mat-mdc-menu-item {
+  min-height: 48px;
+}
+.cj-select-panel .mat-mdc-menu-item .check {
+  width: 24px;
+  margin-right: 8px;
+  color: var(--mat-sys-primary);
+  font-size: 20px;
+  vertical-align: middle;
+}
+.cj-select-panel .mat-mdc-menu-item.on {
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+}

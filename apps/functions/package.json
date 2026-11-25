@@ -1,0 +1,19 @@
+{
+  "name": "@chefjuno/functions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "lib/index.js",
+  "engines": { "node": "24" },
+  "scripts": {
+    "build": "node build.mjs",
+    "gcp-build": "",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@octokit/app": "^16.1.4",
+    "@octokit/rest": "^22.0.1",
+    "firebase-admin": "^14.5.1",
+    "firebase-functions": "^7.4.0"
+  }
+}

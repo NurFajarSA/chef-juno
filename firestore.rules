@@ -1,0 +1,213 @@
+rules_version = '2';
+
+// Security rules untuk database `chefjuno` (§5, §12.5, §12.6).
+// Penulisan sensitif lewat callable (Admin SDK) — klien ditolak.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helper ----------
+    function signedIn() { return request.auth != null; }
+    function isMachine() { return signedIn() && request.auth.token.machine == true; }
+    function machineId() { return request.auth.token.machineId; }
+    function machineDoc() { return get(/databases/$(database)/documents/machines/$(machineId())); }
+    function activeMachine() {
+      return isMachine()
+        && request.auth.uid == 'machine:' + machineId()
+        && exists(/databases/$(database)/documents/machines/$(machineId()))
+        && machineDoc().data.revoked != true;
+    }
+    function isMember() {
+      return signedIn()
+        && request.auth.token.cj in ['admin', 'member']
+        && request.auth.token.cjGh is string
+        && exists(/databases/$(database)/documents/members/$(request.auth.token.cjGh));
+    }
+    function isAdmin() {
+      return isMember()
+        && request.auth.token.cj == 'admin'
+        && get(/databases/$(database)/documents/members/$(request.auth.token.cjGh)).data.role == 'admin';
+    }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+    // ---------- koleksi yang dibaca anggota, ditulis hanya oleh Functions ----------
+    match /members/{id} {
+      allow read: if isMember();
+      allow write: if false; // upsertMember / removeMember (callable)
+    }
+    match /users/{uid} {
+      allow read: if isMember();
+      allow write: if false;
+    }
+    match /settings/{id} {
+      allow read: if isMember();
+      // admin boleh ubah setting global langsung, dengan field yang dikenal saja
+      allow update: if isAdmin() && id == 'global'
+        && changed().hasOnly(['maxInlineComments', 'preferredAgent', 'models', 'agentMaxTurns',
+                              'reviewTimeoutMinutes', 'maxDiffBytes', 'minConfidence', 'maxPostPriority',
+                              'reviewMode', 'roleTiers', 'tierModels', 'tierEffort', 'verifyEnabled', 'appVerifyEnabled', 'modelPrices', 'impactTargets',
+                              'updatedAt', 'updatedBy'])
+        && (!('reviewMode' in request.resource.data) || request.resource.data.reviewMode in ['auto', 'standard', 'deep'])
+        && (!('verifyEnabled' in request.resource.data) || request.resource.data.verifyEnabled is bool)
+        && (!('appVerifyEnabled' in request.resource.data) || request.resource.data.appVerifyEnabled is bool)
+        && (!('roleTiers' in request.resource.data) || request.resource.data.roleTiers is map)
+        && (!('tierModels' in request.resource.data) || request.resource.data.tierModels is map)
+        && (!('tierEffort' in request.resource.data) || request.resource.data.tierEffort is map)
+        && (!('impactTargets' in request.resource.data) || request.resource.data.impactTargets is map)
+        && (!('modelPrices' in request.resource.data) || (request.resource.data.modelPrices is map && request.resource.data.modelPrices.size() <= 50))
+        && (!('minConfidence' in request.resource.data)
+            || (request.resource.data.minConfidence is number
+                && request.resource.data.minConfidence >= 0 && request.resource.data.minConfidence <= 1))
+        && (!('maxPostPriority' in request.resource.data) || request.resource.data.maxPostPriority in ['P0', 'P1', 'P2'])
+        && (!('maxInlineComments' in request.resource.data)
+            || (request.resource.data.maxInlineComments is int
+                && request.resource.data.maxInlineComments >= 0
+                && request.resource.data.maxInlineComments <= 30))
+        && (!('preferredAgent' in request.resource.data)
+            || request.resource.data.preferredAgent in ['any', 'claude', 'codex']);
+      allow create, delete: if false;
+    }
+    match /auditLog/{id} {
+      allow read: if isMember();
+      allow write: if false;
+    }
+    match /findings/{id} {
+      allow read: if isMember();
+      allow write: if false;
+    }
+    match /people/{login} {
+      allow read: if isMember() || activeMachine();
+      allow write: if false;
+    }
+    match /reports/{id} {
+      allow read: if isMember();
+      allow write: if false;
+    }
+    match /rules/{id} {
+      allow read: if isMember() || (activeMachine() && resource.data.status == 'active');
+      allow write: if false; // createManualRule / decideRules (callable)
+    }
+
+    // ---------- repos & modul ----------
+    match /repos/{repoId} {
+      allow read: if isMember() || activeMachine();
+      // admin hanya boleh toggle `enabled`
+      allow update: if isAdmin() && changed().hasOnly(['enabled', 'updatedAt'])
+        && request.resource.data.enabled is bool;
+      allow create, delete: if false;
+
+      match /modules/{moduleId} {
+        allow read: if isMember() || activeMachine();
+        allow write: if false; // ditulis Function dari result.modules job index (§12.3)
+      }
+    }
+
+    // ---------- prompt (versi immutable) ----------
+    match /prompts/{key} {
+      allow read: if isMember() || activeMachine();
+      allow write: if false; // savePromptVersion / activatePromptVersion
+      match /versions/{v} {
+        allow read: if isMember() || activeMachine();
+        allow create, update, delete: if false; // immutable; dibuat lewat callable
+      }
+    }
+
+    // ---------- skill tim (versi immutable; ditulis lewat callable importSkills / saveSkillVersion) ----------
+    match /skills/{slug} {
+      allow read: if isMember() || activeMachine();
+      allow write: if false;
+      match /versions/{v} {
+        allow read: if isMember() || activeMachine();
+        allow write: if false;
+      }
+    }
+
+    // ---------- mesin ----------
+    // catatan semua PR untuk Analitik → Dampak; ditulis Functions dari webhook / ambil riwayat
+    match /prs/{id} {
+      allow read: if isMember();
+      allow write: if false;
+    }
+
+    match /machines/{id} {
+      allow read: if isMember() || (activeMachine() && id == machineId());
+      // heartbeat oleh mesin itu sendiri, field terbatas
+      allow update: if (activeMachine() && id == machineId()
+        && changed().hasOnly(['lastSeenAt', 'agents', 'currentJobIds', 'daemonVersion', 'platform']))
+        // admin mengatur kapasitas job sekaligus (1–4) per mesin
+        || (isAdmin() && changed().hasOnly(['concurrency'])
+            && request.resource.data.concurrency is int
+            && request.resource.data.concurrency >= 1 && request.resource.data.concurrency <= 4);
+      allow create, delete: if false;
+    }
+    match /machineSecrets/{id} {
+      allow read, write: if false;
+    }
+    match /machineRegistrations/{id} {
+      allow read, write: if false;
+    }
+    match /webhookDeliveries/{id} {
+      allow read, write: if false;
+    }
+
+    // ---------- jobs ----------
+    match /jobs/{jobId} {
+      allow read: if isMember()
+        || (activeMachine() && (resource.data.status == 'queued' || resource.data.machineId == machineId()));
+
+      allow update: if activeMachine() && (
+        // claim: queued → claimed
+        (resource.data.status == 'queued'
+          && request.resource.data.status == 'claimed'
+          && request.resource.data.machineId == machineId()
+          && request.resource.data.attempts == resource.data.get('attempts', 0) + 1
+          && request.resource.data.leaseExpiresAt is timestamp
+          && request.resource.data.leaseExpiresAt <= request.time + duration.value(11, 'm')
+          && changed().hasOnly(['status', 'machineId', 'attempts', 'claimedAt', 'leaseExpiresAt', 'updatedAt']))
+        ||
+        // progres: claimed → running → completed|failed, hanya job miliknya
+        (resource.data.machineId == machineId()
+          && request.resource.data.machineId == machineId()
+          && changed().hasOnly(['status', 'result', 'error', 'leaseExpiresAt', 'updatedAt', 'finishedAt', 'progress'])
+          && (
+            (resource.data.status == 'claimed' && request.resource.data.status in ['claimed', 'running', 'failed'])
+            || (resource.data.status == 'running' && request.resource.data.status in ['running', 'completed', 'failed'])
+          )
+          && (!('leaseExpiresAt' in changed())
+              || request.resource.data.leaseExpiresAt <= request.time + duration.value(11, 'm')))
+      );
+      allow create, delete: if false;
+
+      // aktivitas agent (berpikir, alat yang dipakai, keputusan; tanpa hasil alat) — ditulis mesin pemegang job
+      match /activity/{actId} {
+        allow read: if isMember();
+        allow create: if activeMachine()
+          && get(/databases/$(database)/documents/jobs/$(jobId)).data.machineId == machineId()
+          && get(/databases/$(database)/documents/jobs/$(jobId)).data.status == 'running'
+          && request.resource.data.keys().hasOnly(['step', 'seq', 'events', 'createdAt'])
+          && request.resource.data.step is string
+          && request.resource.data.seq is int
+          && request.resource.data.events is list
+          && request.resource.data.events.size() <= 40;
+        allow update, delete: if false;
+      }
+
+      // bukti uji aplikasi (screenshot JPEG base64) — ditulis mesin pemegang job selama berjalan
+      match /evidence/{evId} {
+        allow read: if isMember();
+        allow create: if activeMachine()
+          && get(/databases/$(database)/documents/jobs/$(jobId)).data.machineId == machineId()
+          && get(/databases/$(database)/documents/jobs/$(jobId)).data.status == 'running'
+          && request.resource.data.keys().hasOnly(['findingIndex', 'name', 'mime', 'data', 'createdAt'])
+          && request.resource.data.mime == 'image/jpeg'
+          && request.resource.data.data is string
+          && request.resource.data.data.size() <= 950000
+          && request.resource.data.findingIndex is int;
+        allow update, delete: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

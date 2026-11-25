@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="id">
+<head><meta charset="utf-8"><title>Toko Fixture</title>
+<style>body{font-family:sans-serif;margin:24px} .total{font-size:28px;font-weight:bold} button{padding:10px 16px}</style></head>
+<body>
+<main id="app"></main>
+<script>
+  // seperti app Flutter pada umumnya: di localhost App Check memakai debug token acak (true) kecuali dikunci dari luar
+  if (['localhost', '127.0.0.1'].includes(location.hostname)) self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+</script>
+<script>
+// Aplikasi fixture untuk test runner uji aplikasi Chef Juno. Bug sengaja: total keranjang "Rp NaN" setelah tambah item.
+const app = document.getElementById('app');
+const state = { user: localStorage.getItem('user'), items: [] };
+function render() {
+  const path = location.pathname;
+  if (!state.user) {
+    app.innerHTML = `<h1>Masuk</h1>
+      <label>Email <input id="email" type="email"></label><br><br>
+      <label>Kata sandi <input id="pw" type="password"></label><br><br>
+      <button id="login">Masuk</button><p id="err"></p>`;
+    document.getElementById('login').onclick = () => {
+      const e = document.getElementById('email').value, p = document.getElementById('pw').value;
+      if (e === 'tester@contoh.id' && p === 'rahasia-uji') { localStorage.setItem('user', e); state.user = e; history.pushState({}, '', '/'); render(); }
+      else document.getElementById('err').textContent = 'Email atau kata sandi salah';
+    };
+    return;
+  }
+  if (path === '/keranjang') {
+    const total = state.items.reduce((a, it) => a + it.harga * it.jumlah, 0); // bug: jumlah undefined
+    app.innerHTML = `<h1>Keranjang</h1><p>${state.items.length} item</p>
+      <button id="add">Tambah buku</button><p class="total">Total: Rp ${total}</p>`;
+    document.getElementById('add').onclick = () => { state.items.push({ harga: 25000 }); render(); };
+    return;
+  }
+  app.innerHTML = `<h1>Beranda</h1><p>Halo ${state.user}</p><p>App Check: ${typeof self.FIREBASE_APPCHECK_DEBUG_TOKEN === 'string' ? 'token tetap ' + self.FIREBASE_APPCHECK_DEBUG_TOKEN : 'token acak'}</p><a href="/keranjang" id="cart">Buka keranjang</a>`;
+  document.getElementById('cart').onclick = (ev) => { ev.preventDefault(); history.pushState({}, '', '/keranjang'); render(); };
+}
+window.onpopstate = render;
+render();
+</script>
+</body>
+</html>

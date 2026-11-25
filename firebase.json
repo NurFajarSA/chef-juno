@@ -1,0 +1,70 @@
+{
+  "firestore": {
+    "database": "chefjuno",
+    "location": "asia-southeast2",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": [
+    {
+      "source": "apps/functions",
+      "codebase": "chefjuno",
+      "runtime": "nodejs24",
+      "ignore": [
+        "node_modules",
+        "src",
+        "test",
+        ".secret.local.example",
+        "*.log",
+        "build.mjs",
+        "tsconfig.json"
+      ]
+    }
+  ],
+  "hosting": {
+    "target": "dashboard",
+    "public": "apps/web/dist/web/browser",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/evidence",
+        "function": {
+          "functionId": "evidenceImage",
+          "region": "asia-southeast2"
+        }
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "emulators": {
+    "auth": {
+      "host": "127.0.0.1",
+      "port": 9099
+    },
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8085
+    },
+    "functions": {
+      "host": "127.0.0.1",
+      "port": 5001
+    },
+    "hosting": {
+      "host": "127.0.0.1",
+      "port": 5055
+    },
+    "ui": {
+      "enabled": true,
+      "host": "127.0.0.1",
+      "port": 4005
+    },
+    "singleProjectMode": true
+  }
+}
