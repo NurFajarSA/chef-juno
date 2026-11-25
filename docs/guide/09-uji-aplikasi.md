@@ -119,6 +119,8 @@ Lingkungan uji (emulator, data, akun) dipegang **penguji**; daemon memegang kunc
 - Penguji dilarang push, mengubah repo, atau memposting ke GitHub; hasilnya hanya JSON yang divalidasi schema dan
   dipindai rahasia.
 - Hanya PR yang direview atas permintaan anggota tim (`lapor @chefjuno`).
+- **Satu uji aplikasi per mesin.** Emulator dan akun uji hanya satu jalur, jadi uji berikutnya tetap antre sampai uji
+  yang berjalan selesai — tidak diambil lalu dilewati karena kunci emulator tidak didapat. Review kode tetap jalan paralel.
 - Laporan yang terlalu panjang dipotong, bukan ditolak; laporan tidak sah → uji dianggap tidak jalan (Belum teruji).
 - Detail isolasi dan risikonya: [Keamanan](07-keamanan.md#penguji-aplikasi-agent-tepercaya).
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { withRepoLock } from '../../src/jobs/git.js';
-import { clampConcurrency } from '../../src/daemon.js';
+import { clampConcurrency, mayClaimType } from '../../src/daemon.js';
 
 describe('kapasitas & kunci repo', () => {
   it('kapasitas mesin dibatasi 1–4, nilai aneh → 1', () => {
@@ -28,5 +28,17 @@ describe('kapasitas & kunci repo', () => {
     expect(log.indexOf('b1:selesai')).toBeLessThan(log.indexOf('a1:selesai'));
     await expect(withRepoLock('/r/a', async () => Promise.reject(new Error('gagal')))).rejects.toThrow('gagal');
     expect(await withRepoLock('/r/a', async () => 'lanjut')).toBe('lanjut');
+  });
+});
+
+describe('jenis job yang boleh diambil', () => {
+  it('review & job lain selalu boleh', () => {
+    for (const t of ['review', 'index', 'learn']) expect(mayClaimType(t, { noApp: true, appRunning: true })).toBe(true);
+  });
+  it('uji aplikasi: satu per mesin, dan tidak di mesin --no-app', () => {
+    expect(mayClaimType('app-verify', { noApp: false, appRunning: false })).toBe(true);
+    // uji kedua tetap antre selama uji pertama berjalan (emulator & akun uji satu jalur)
+    expect(mayClaimType('app-verify', { noApp: false, appRunning: true })).toBe(false);
+    expect(mayClaimType('app-verify', { noApp: true, appRunning: false })).toBe(false);
   });
 });
