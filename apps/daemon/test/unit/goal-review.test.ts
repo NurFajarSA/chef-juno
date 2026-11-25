@@ -20,3 +20,13 @@ describe('GOAL_PROMPT', () => {
     expect(GOAL_PROMPT).toContain('boleh memecahnya ke beberapa\nsubagent. Caranya terserah kamu.');
   });
 });
+
+describe('GOAL_PROMPT: subagent', () => {
+  it('pedoman (bukan resep): kapan memecah, cara memecah, verifikasi P0/P1 independen, agent utama hakim akhir', () => {
+    expect(GOAL_PROMPT).toContain('# Memakai subagent');
+    expect(GOAL_PROMPT).toContain('PR kecil → kerjakan sendiri');
+    expect(GOAL_PROMPT).toContain('Subagent tidak melihat konteksmu');
+    expect(GOAL_PROMPT).toContain('sebelum melaporkan P0/P1, minta subagent yang skeptis');
+    expect(GOAL_PROMPT).toContain('Kamu hakim akhir');
+  });
+});
