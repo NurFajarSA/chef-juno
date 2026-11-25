@@ -22,6 +22,23 @@ flowchart TB
   *maintainability* tidak dicoba.
 - Temuan yang tidak bisa dicoba dilewati dengan alasan yang tercatat.
 
+### Deskripsi PR bertemplate
+
+Penguji dan reviewer membaca deskripsi PR. Kalau deskripsi mengikuti template dengan heading yang dikenali, bagiannya
+diubah menjadi brief terstruktur, bukan dipotong apa adanya:
+
+| Heading di deskripsi (salah satu) | Masuk brief sebagai |
+|---|---|
+| `Why`, `Alasan` | Alasan (dari penulis) |
+| `Behavior change`, `Perubahan perilaku` + `Affected screens and flows`, `Alur terdampak` | **Alur yang diubah PR** — daftar layar yang wajib dicoba semua |
+| `How to try it`, `Cara mencoba` dengan label `Account`/`Akun`, `Data`, `Steps`/`Langkah` | **Cara mencoba** — akun, data uji, dan langkah |
+| `Out of scope`, `Risk`, `Verification` (dan padanan Indonesianya) | Di luar cakupan, risiko, verifikasi oleh penulis |
+
+Komentar HTML (petunjuk template) dibuang, dan heading di dalam blok kode tidak dihitung. Deskripsi tanpa bagian
+*alur terdampak* atau *cara mencoba* dipakai seperti biasa (4.000 karakter pertama). Penguji tetap memeriksa daftar
+file: layar lain yang memakai kode yang berubah ikut dicoba. Temuan "alur rusak" ditempel ke file kode dengan
+perubahan terbanyak (bukan test atau dokumentasi).
+
 ## Penguji agent
 
 Satu agent **tepercaya** (boleh menjalankan perintah) bekerja di worktree PR:

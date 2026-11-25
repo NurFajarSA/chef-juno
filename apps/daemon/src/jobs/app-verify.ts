@@ -42,6 +42,7 @@ import {
   type FindingEvidence,
   type ReviewFinding,
   type RunnerResult,
+  anchorFileFromBrief,
 } from '@chefjuno/shared';
 import type { JobContext } from '../daemon.js';
 import { cfg } from '../env.js';
@@ -104,8 +105,12 @@ export function changeItem(prBrief: string): ReviewFinding {
     category: 'bug',
     title: `Alur yang diubah PR: ${title}`.slice(0, 200),
     what:
-      'Coba sebagai pengguna alur yang diubah PR ini (lihat judul, deskripsi, dan daftar file). Tujuannya membuktikan ' +
-      'perubahan bekerja dan tidak merusak layar: angka/teks yang tampil masuk akal, tombol berfungsi, tidak ada error.',
+      (prBrief.includes('## Alur yang diubah PR')
+        ? 'Coba sebagai pengguna SETIAP layar & alur di bagian "Alur yang diubah PR", dengan akun, data, dan langkah dari ' +
+          '"Cara mencoba" (siapkan sendiri yang belum ada). Layar yang tidak bisa dicoba disebut beserta penghalangnya. '
+        : 'Coba sebagai pengguna alur yang diubah PR ini (lihat judul, deskripsi, dan daftar file). ') +
+      'Tujuannya membuktikan perubahan bekerja dan tidak merusak layar: angka/teks yang tampil masuk akal, tombol ' +
+      'berfungsi, tidak ada error.',
     why: 'Review membaca kode saja belum membuktikan aplikasi berjalan benar.',
     fix: '',
     suggestion: null,
@@ -117,7 +122,7 @@ export function changeItem(prBrief: string): ReviewFinding {
 
 /** Temuan baru bila alur yang diubah terlihat rusak saat dicoba di aplikasi. */
 function changeFinding(prBrief: string, note: string, evidence: FindingEvidence) {
-  const file = /^- (\S+)/m.exec(prBrief.split('## File yang berubah')[1] ?? '')?.[1] ?? '';
+  const file = anchorFileFromBrief(prBrief);
   return {
     path: file,
     line: 1,
@@ -145,7 +150,9 @@ Cara kerja:
    Lingkungan uji (emulator/stack lokal, data, akun) adalah tanggung jawabmu: siapkan dan PERBAIKI SENDIRI bila mati atau
    rusak, sesuai skill & instruksi tim — jangan berhenti di langkah persiapan. Catat cara perbaikannya di lessons.
 2. Uji "Alur yang diubah PR" (wajib) dan setiap temuan yang disebut, secara interaktif: lihat layar, bertindak, lihat
-   lagi. Cari tahu nama tombol/rute dari kode, bukan menebak.
+   lagi. Cari tahu nama tombol/rute dari kode, bukan menebak. Kalau brief punya bagian "Alur yang diubah PR" dan
+   "Cara mencoba" dari penulis, itu daftar layar yang wajib kamu coba semuanya beserta akun, data, dan langkahnya —
+   tetap periksa daftar file: layar lain yang memakai kode yang berubah juga dicoba. Sebut layar yang tidak sempat.
 3. Data uji: kalau layar yang perlu dicoba masih kosong atau datanya belum ada (mis. riwayat kuis untuk laporan &
    grafik, soal dengan penilaian khusus), SIAPKAN SENDIRI datanya sebelum menguji — itu bagian dari tugasmu, jangan
    berhenti di "data kosong". Cari tahu bentuk datanya dari kode (model, repository, query), lalu buat lewat UI atau

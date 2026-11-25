@@ -123,6 +123,56 @@ describe('memory Chef Juno & uji aplikasi oleh agent', () => {
     expect(app.result.appVerification.change.shots.length).toBeGreaterThan(0);
   });
 
+  it('deskripsi PR bertemplate → penguji & reviewer menerima "Alur yang diubah PR" dan "Cara mencoba" terstruktur', async () => {
+    h.mock.repos.get(h.repo.fullName)!.prs.get(1)!.body = [
+      '## Why',
+      '<!-- intent -->',
+      'Opsi cache baru untuk keranjang.',
+      '',
+      '## Behavior change',
+      'Keranjang dimuat dari cache saat offline.',
+      '',
+      '## Affected screens and flows',
+      '- Beranda → Keranjang: kosong saat offline → isi terakhir tampil',
+      '',
+      '## How to try it',
+      '- Account: akun uji biasa',
+      '- Data: keranjang berisi dua barang',
+      '- Steps:',
+      '  1. Buka Keranjang',
+      '  2. Matikan jaringan, muat ulang',
+      '',
+      '## Verification',
+      '- Tests and analyze: cache_test lulus',
+      '- Device or emulator: belum',
+    ].join('\n');
+    const before = recs().filter((r) => String(r.system).includes('penguji aplikasi independen')).length;
+    const posted = async () =>
+      (await h.db.collection('jobs').where('type', '==', 'app-verify').where('status', '==', 'posted').get()).size;
+    const done = await posted();
+    await h.comment('lapor @chefjuno');
+    await h.waitFor(async () => (await posted()) === done + 1, 120_000, 'uji aplikasi');
+
+    const tester = recs()
+      .filter((r) => String(r.system).includes('penguji aplikasi independen'))
+      .slice(before)[0];
+    expect(tester.prompt).toContain(
+      '## Alur yang diubah PR (dari penulis; wajib dicoba semua)\nPerubahan perilaku:\nKeranjang dimuat dari cache ' +
+        'saat offline.\n\nLayar & alur:\n- Beranda → Keranjang: kosong saat offline → isi terakhir tampil',
+    );
+    expect(tester.prompt).toContain(
+      '## Cara mencoba (dari penulis)\nAkun: akun uji biasa\nData: keranjang berisi dua barang\nLangkah:\n' +
+        '1. Buka Keranjang\n2. Matikan jaringan, muat ulang',
+    );
+    expect(tester.prompt).not.toContain('<!-- intent -->');
+    expect(tester.system).toContain(
+      'Kalau brief punya bagian "Alur yang diubah PR" dan\n   "Cara mencoba" dari penulis',
+    );
+    // reviewer (triase, putaran, reviewer akhir) membaca brief yang sama
+    const reviewers = recs().filter((r) => String(r.prompt).includes('## Cara mencoba (dari penulis)'));
+    expect(reviewers.length).toBeGreaterThan(1);
+  });
+
   it('mesin tanpa emulator (--no-app) hanya mengambil review; uji aplikasi menunggu mesin yang punya emulator', async () => {
     // matikan mesin utama, nyalakan mesin "tim" tanpa uji aplikasi
     await h.stop();
