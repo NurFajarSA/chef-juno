@@ -79,11 +79,6 @@ function skillTree(slug: string, paths: string[]): TreeNode[] {
           <button matIconButton (click)="openImport()" matTooltip="Import skills" aria-label="Import skills" data-testid="skills-import">
             <span class="material-symbols-rounded" aria-hidden="true">upload</span>
           </button>
-          @if (auth.isAdmin()) {
-            <button matIconButton (click)="restoreDefaults()" [disabled]="busy()" matTooltip="Pulihkan skill bawaan" aria-label="Pulihkan skill bawaan" data-testid="skills-restore">
-              <span class="material-symbols-rounded" aria-hidden="true">settings_backup_restore</span>
-            </button>
-          }
         </header>
         <label class="ex-search">
           <span class="material-symbols-rounded" aria-hidden="true">search</span>
@@ -423,7 +418,7 @@ export class SkillsEditorPage {
       .filter((g) => g.items.length)
       .map((g) => ({ ...g, enabled: g.items.filter((s) => s.enabled).length }));
   });
-  /** skill bawaan dulu, lalu skill tim; masing-masing urut slug */
+  /** dikelompokkan per kategori; masing-masing urut slug */
   protected readonly filteredSkills = computed(() => {
     const q = this.q().trim().toLowerCase();
     const list = [...this.skills().data].sort((a, b) => (a.source === 'default') === (b.source === 'default') ? a.slug.localeCompare(b.slug) : a.source === 'default' ? -1 : 1);
@@ -693,9 +688,6 @@ export class SkillsEditorPage {
   }
   toggleSkill(slug: string, enabled: boolean) {
     return this.run(() => this.fb.call('setSkillEnabled')({ slug, enabled }), enabled ? 'Skill diaktifkan — dipakai di review berikutnya.' : 'Skill dinonaktifkan.');
-  }
-  restoreDefaults() {
-    return this.run(() => this.fb.call('setupWorkspace')({ action: 'init' }), 'Skill bawaan dipulihkan.');
   }
   async deleteSkill(slug: string) {
     await this.run(() => this.fb.call('deleteSkill')({ slug }), 'Skill dihapus.');

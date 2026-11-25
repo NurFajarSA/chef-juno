@@ -56,10 +56,10 @@ flowchart TB
 | Tahap | Model | Yang dilakukan |
 |---|---|---|
 | ① Triase | Sonnet, effort low | Dari judul, deskripsi, dan daftar file (tanpa diff), pilih putaran tambahan: keamanan, stack & platform, aturan tim. |
-| ② Putaran spesialis | Sonnet, effort high | Agent yang sama dengan konteks penuh, masing-masing satu fokus, berjalan paralel. *Kebenaran* dan *dokumen & klaim PR* selalu jalan. Semua skill inti dimuat. |
+| ② Putaran spesialis | Sonnet, effort high | Agent yang sama dengan konteks penuh, masing-masing satu fokus, berjalan paralel. *Kebenaran* dan *dokumen & klaim PR* selalu jalan. Skill tim yang aktif dimuat. |
 | ③ Gabung | — | Deterministik: temuan di file sama, baris berdekatan (±3), judul mirip dianggap satu; keparahan tertinggi dipakai; disepakati ≥ 2 putaran → keyakinan +0,1. |
-| ④ Validasi | Opus | Validator skeptis memeriksa satu temuan P0/P1: nyata, diperkenalkan PR ini, akibat sesuai klaim? Diberi skill inti. |
-| ⑤ Reviewer akhir | Opus | Menerima temuan bernomor + potongan kode ±12 baris, membuang yang palsu, menulis ulang komentar (judul = akibat, mekanisme, perbaikan + test), skor, tingkat dampak, walkthrough, diagram. Diberi skill inti. |
+| ④ Validasi | Opus | Validator skeptis memeriksa satu temuan P0/P1: nyata, diperkenalkan PR ini, akibat sesuai klaim? Diberi skill tim berkategori inti. |
+| ⑤ Reviewer akhir | Opus | Menerima temuan bernomor + potongan kode ±12 baris, membuang yang palsu, menulis ulang komentar (judul = akibat, mekanisme, perbaikan + test), skor, tingkat dampak, walkthrough, diagram. Diberi skill tim berkategori inti. |
 
 Review ringan (hanya dokumentasi) memakai satu reviewer Sonnet dengan cek wajib penelusuran & dokumen, lalu reviewer
 akhir Opus yang sama.

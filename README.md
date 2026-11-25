@@ -31,9 +31,8 @@ AI reviewers read diffs well and test nothing. They report bugs that are not the
 - Every P0–P2 finding is posted inline, with the consequence as the title, the mechanism, the trigger and a fix. Findings under the confidence threshold are kept in the dashboard instead of the PR.
 - A re-review replaces the bot's previous inline comments unless someone replied or reacted.
 
-**Ten core skills**
-- `bukti` (evidence), `akar-masalah` (root cause), `kontrak-dan-dampak` (contracts and impact), `desain-dari-domain`, `migrasi-tuntas` (finish the migration), `kesederhanaan` (simplicity), `komentar-kode`, `sinyal-bukan-noise` (signal, not noise), `jujur-soal-kelengkapan` (honest about coverage) and `memory-tim` (team memory).
-- They are principles, not framework trivia, so they work for any stack. Repo-specific knowledge comes from the repo itself (`CLAUDE.md`, `AGENTS.md`, its verify skill) and from Chef Juno's memory. Teams can import their own skills, scoped to file paths.
+**No built-in skills**
+- How to review well is left to the model. Skills are for what the model cannot know: your team's conventions and the mistakes your repo keeps making. Import them from the dashboard, optionally scoped to file paths. Repo knowledge also comes from `CLAUDE.md`, `AGENTS.md`, the repo's verify skill and Chef Juno's memory.
 
 **App testing**
 - After the review is posted, a tester agent on a machine with a local emulator follows the repo's verify skill: it brings the emulator up, fixes it if it is broken, prepares the test data it needs, runs the app, tries the changed flow and the findings, and must save screenshots.
@@ -132,7 +131,7 @@ The registration code comes from **Mesin → Tambah mesin** in the dashboard; an
 | `apps/functions` | Cloud Functions: webhook, posting, commit status, evidence images, setup |
 | `apps/daemon` | `chefjuno` CLI: machine registration, job claiming, review pipeline, app testing, code map |
 | `packages/shared` | Zod schemas, comment formatting, commands, skills, models |
-| `skills/` | The ten core skills (`SKILL.md` each), bundled as defaults |
+| `skills/` | Notes on team skills (no built-in skills) |
 | `prompts/` | Default persona and review prompts |
 | `docs/guide/` | The guide shown in the dashboard |
 

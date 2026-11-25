@@ -82,7 +82,7 @@ Daemon menyiapkan konteks:
 | Aturan repo | `.chefjuno/rules.md`, `CLAUDE.md`, `AGENTS.md` dari **branch tujuan** |
 | Konteks code map | simbol yang berubah, pemanggil, yang dipanggil, test terkait, ringkasan modul |
 | Memory tim | aturan tim yang disetujui & cocok dengan path, fakta yang diingat (`@chefjuno ingat`, pelajaran uji aplikasi), profil kesalahan berulang penulis PR |
-| Skill | 10 skill inti (selalu) + skill tim yang `paths:`-nya cocok dengan file yang berubah |
+| Skill | skill tim yang aktif (`paths:` cocok dengan file yang berubah, bila diisi) |
 | Verifikasi statis (opsional) | masalah analisis statis yang **baru** di PR (lihat [Kustomisasi](06-kustomisasi.md)) |
 
 Agent dijalankan sesuai mode (lihat [Keamanan](07-keamanan.md)) dan wajib mengembalikan JSON sesuai schema:

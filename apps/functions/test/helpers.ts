@@ -5,7 +5,7 @@ import { getFirestore as getClientFs, connectFirestoreEmulator, type Firestore }
 import { initializeApp, getApps, type App } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
-import { DB_ID, DEFAULT_SKILLS, DEMO_PROJECT_ID } from '@chefjuno/shared';
+import { DB_ID, DEMO_PROJECT_ID } from '@chefjuno/shared';
 
 export const PROJECT = DEMO_PROJECT_ID;
 export const FS_HOST = process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8085';
@@ -122,20 +122,33 @@ export async function importGithubUser(uid: string, githubId: string, login: str
   if (res.failureCount) throw new Error('importUsers gagal: ' + JSON.stringify(res.errors.map((e) => e.error.message)));
 }
 
-/** Skill bawaan aktif (seperti hasil Setup) — job baru mengunci versinya lewat skillVersions. */
-export async function seedDefaultSkills() {
+/**
+ * Skill tim contoh (aktif): tiga berkategori `inti` (dipakai juga oleh validator, reviewer akhir, penguji) dan satu
+ * `domain`. Chef Juno tidak membawa skill bawaan; ini hanya fixture test.
+ */
+export const TEAM_SKILL_FIXTURES = [
+  { slug: 'bukti', category: 'inti', body: 'Bedakan yang terukur dari yang disimpulkan.' },
+  { slug: 'jujur-soal-kelengkapan', category: 'inti', body: 'Sebut yang tidak dinilai.' },
+  { slug: 'sinyal-bukan-noise', category: 'inti', body: 'Hanya yang layak waktu manusia.' },
+  { slug: 'flutter-tim', category: 'domain', body: 'Konvensi widget tim.' },
+] as const;
+
+export async function seedTeamSkills() {
   const { db } = admin();
-  for (const sk of DEFAULT_SKILLS) {
+  for (const sk of TEAM_SKILL_FIXTURES) {
+    const md = `---\nname: ${sk.slug}\ndescription: ${sk.body}\ncategory: ${sk.category}\n---\n\n# ${sk.slug}\n\n${sk.body}\n`;
     await db.doc(`skills/${sk.slug}`).set({
-      name: sk.name,
-      description: sk.description,
-      paths: sk.paths,
+      name: sk.slug,
+      description: sk.body,
+      paths: [],
       category: sk.category,
       latestVersion: 1,
-      fileCount: Object.keys(sk.files).length,
-      source: 'default',
+      fileCount: 1,
+      source: 'import',
       enabled: true,
     });
-    await db.doc(`skills/${sk.slug}/versions/1`).set({ version: 1, files: sk.files, authorUid: 'system' });
+    await db
+      .doc(`skills/${sk.slug}/versions/1`)
+      .set({ version: 1, files: { 'SKILL.md': md }, authorUid: 'uid-admin1' });
   }
 }

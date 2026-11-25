@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
-import { clearAuth, clearFirestore, seedDefaultSkills } from '../helpers.js';
+import { clearAuth, clearFirestore, seedTeamSkills } from '../helpers.js';
 import { createHarness, type Harness } from '../harness.js';
 
 // Mode mendalam (agent paralel + validasi, model per peran) & verifikasi statis di container (runtime palsu).
@@ -12,7 +12,7 @@ beforeAll(async () => {
   await clearFirestore();
   await clearAuth();
   h = await createHarness();
-  await seedDefaultSkills();
+  await seedTeamSkills();
   await h.startMachine({ agents: ['claude'] });
 });
 afterAll(async () => {
@@ -79,11 +79,12 @@ describe('review mendalam & verifikasi', () => {
     expect(done.data.result.findings).toHaveLength(4);
     // disepakati 4 putaran → keyakinan naik ke 1.0 (validator 0.97 tidak menurunkannya: diambil yang tertinggi)
     expect(done.data.result.findings[0].confidence).toBe(1);
-    // skill inti juga dipakai validator & reviewer akhir (yang memutuskan temuan, severity, verdict)
+    // skill tim berkategori inti juga dipakai validator & reviewer akhir; skill domain tidak
     const sys = records().map((r) => String(r.system));
     const validators = sys.filter((x) => x.startsWith('Kamu validator temuan'));
     expect(validators.length).toBeGreaterThan(0);
     expect(validators.every((x) => x.includes('(`bukti`)') && x.includes('(`sinyal-bukan-noise`)'))).toBe(true);
+    expect(validators.some((x) => x.includes('(`flutter-tim`)'))).toBe(false);
     expect(sys.find((x) => x.includes('Kamu reviewer akhir (senior)'))).toContain('(`bukti`)');
     // model benar-benar dikirim ke CLI (--model) per peran
     const models = records().map(argModel);

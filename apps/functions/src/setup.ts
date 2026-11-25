@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
 import { FieldValue } from 'firebase-admin/firestore';
-import { DEFAULT_PROMPTS, DEFAULT_SETTINGS, DEFAULT_SKILLS, PromptKeySchema } from '@chefjuno/shared';
+import { DEFAULT_PROMPTS, DEFAULT_SETTINGS, PromptKeySchema } from '@chefjuno/shared';
 import { db } from './admin.js';
 import { GITHUB_APP_SLUG } from './params.js';
 import { audit, requireMember } from './util.js';
@@ -57,51 +57,6 @@ export const setupWorkspace = onCall(async (req) => {
         created.push(`prompt:${key}`);
       });
     });
-    // skill bawaan (satu transaksi per skill supaya tidak melewati batas transaksi)
-    for (const sk of DEFAULT_SKILLS) {
-      const ref = db().doc(`skills/${sk.slug}`);
-      await db().runTransaction(async (tx) => {
-        const snap = await tx.get(ref);
-        const latest = Number(snap.get('latestVersion') ?? 0);
-        if (snap.exists) {
-          if (snap.get('source') !== 'default') return; // nama sama tapi skill milik tim: jangan disentuh
-          const prev = await tx.get(ref.collection('versions').doc(String(latest)));
-          const prevFiles = (prev.get('files') ?? {}) as Record<string, string>;
-          const same =
-            JSON.stringify(Object.entries(prevFiles).sort()) === JSON.stringify(Object.entries(sk.files).sort());
-          if (same || prev.get('authorUid') !== 'system') return; // sudah sama, atau sudah diedit tim
-        }
-        const v = latest + 1;
-        tx.set(ref.collection('versions').doc(String(v)), {
-          version: v,
-          files: sk.files,
-          message: latest ? 'Pembaruan skill bawaan Chef Juno' : 'Skill bawaan Chef Juno',
-          authorUid: 'system',
-          authorLogin: 'chefjuno',
-          parentVersion: latest || null,
-          createdAt: FieldValue.serverTimestamp(),
-        });
-        tx.set(
-          ref,
-          {
-            name: sk.name,
-            description: sk.description,
-            paths: sk.paths,
-            category: sk.category ?? null,
-            latestVersion: v,
-            fileCount: Object.keys(sk.files).length,
-            source: 'default',
-            ...(snap.exists
-              ? {}
-              : { enabled: true, everEnabled: true, createdAt: FieldValue.serverTimestamp(), createdBy: me.login }),
-            updatedAt: FieldValue.serverTimestamp(),
-            updatedBy: 'chefjuno',
-          },
-          { merge: true },
-        );
-        created.push(`${latest ? 'skill-update' : 'skill'}:${sk.slug}`);
-      });
-    }
     if (created.length) await audit('setup.init', me.uid, 'settings/global', { created });
   } else {
     // set + merge: aman juga untuk instalasi lama yang settings/global-nya belum punya field onboarding

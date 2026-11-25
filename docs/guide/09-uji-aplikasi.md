@@ -52,7 +52,7 @@ Satu agent **tepercaya** (boleh menjalankan perintah) bekerja di worktree PR:
 5. Melapor status per item: *terbukti* (masalah terlihat), *tidak muncul* (berjalan normal), *belum meyakinkan*
    (tidak sampai layar yang diuji, sebut penghalangnya), plus **pelajaran** tentang cara menguji app ini.
 
-Penguji mendapat skill inti `bukti` dan `jujur-soal-kelengkapan`, instruksi tim, dan fakta dari memory Chef Juno.
+Penguji mendapat skill tim berkategori `inti` (bila ada), instruksi tim, dan fakta dari memory Chef Juno.
 Pelajarannya (mis. "akun uji harus premium supaya kuis terbuka", cara membuat data uji) disimpan sebagai fakta memory
 (sumber `uji-aplikasi`) dan dipakai uji berikutnya — lihat [Memory](05-memory-dan-knowledge.md#fakta-yang-diingat).
 
