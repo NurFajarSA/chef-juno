@@ -277,6 +277,7 @@ export class ClaudeRunner implements AgentRunner {
       timeoutMs: o.timeoutMs,
       env: this.env(),
       onLine: o.onEvent ? (l) => claudeLineEvents(l).forEach((e) => o.onEvent!(e)) : undefined,
+      signal: o.signal,
     });
     if (r.code !== 0 && !r.stdout.trim()) throw new AgentError(`Claude keluar dengan kode ${r.code}`, 'agent');
     const p = parseClaudeOutput(r.stdout);

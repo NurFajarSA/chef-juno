@@ -17,6 +17,7 @@ import { GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_WEBHOOK_SECRET } from './
 import { installationOctokit } from './github.js';
 import { anyMachineOnline, createJob, findActiveReview, ACTIVE_STATUSES } from './jobs.js';
 import { handlePullRequestClosed, handleReviewCommentReply } from './feedback.js';
+import { supersedeOlderHeads } from './cancel.js';
 import { enqueueIndex, indexBranchOf } from './indexing.js';
 import { markReverts, recordPr } from './prs.js';
 
@@ -206,6 +207,8 @@ async function handleIssueComment(p: Payload, delivery: string): Promise<string>
   const repoRef = { id: Number(p.repository.id), fullName: String(p.repository.full_name), installationId };
   const existing = await findActiveReview(repoRef.id, issueNumber, pr.head.sha);
   if (existing) return `sudah ada job ${existing.id}`;
+  // review & uji untuk commit lama yang masih berjalan tidak berguna lagi → dibatalkan
+  await supersedeOlderHeads(repoRef.id, issueNumber, String(pr.head.sha));
   const job = await createJob({
     type: 'review',
     repo: repoRef,

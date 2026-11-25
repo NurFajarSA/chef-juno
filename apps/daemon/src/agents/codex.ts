@@ -109,6 +109,7 @@ export class CodexRunner implements AgentRunner {
         timeoutMs: o.timeoutMs,
         env: this.env(),
         onLine: o.onEvent ? (l) => codexLineEvents(l).forEach((e) => o.onEvent!(e)) : undefined,
+        signal: o.signal,
       },
     );
     if (r.code !== 0) throw new AgentError(`Codex keluar dengan kode ${r.code}`, 'agent');

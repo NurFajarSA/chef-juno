@@ -71,6 +71,8 @@ export function withActivity(agent: AgentRunner, ctx: () => JobContext): AgentRu
         return (o: RunOptions) =>
           target.run({
             ...o,
+            // job dibatalkan dari dashboard / digantikan commit baru → agent dihentikan
+            signal: o.signal ?? ctx().signal,
             onEvent: (e) => {
               o.onEvent?.(e);
               activity(ctx()).push(currentStep.getStore() ?? 'agent', e);

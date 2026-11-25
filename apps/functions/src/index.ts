@@ -12,3 +12,4 @@ export { setupWorkspace } from './setup.js';
 export { importSkills, saveSkillVersion, setSkillEnabled, deleteSkill } from './skills.js';
 export { backfillPrs } from './prs.js';
 export { evidenceImage } from './evidence.js';
+export { cancelJob } from './cancel.js';

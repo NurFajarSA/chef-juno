@@ -45,6 +45,8 @@ export interface JobContext {
   session: FbSession;
   creds: Credentials;
   daemon: Daemon;
+  /** aborted saat job dibatalkan (status `cancelled` di Firestore) */
+  signal?: AbortSignal;
 }
 
 export interface DaemonOptions {
@@ -200,13 +202,35 @@ export class Daemon {
         }).catch(() => undefined),
       cfg.leaseRenewMs(),
     );
+    // pembatalan: status `cancelled` (tombol Batalkan / digantikan commit baru) → hentikan agent job ini
+    const abort = new AbortController();
+    const unsubJob = onSnapshot(
+      ref,
+      (s) => {
+        if (s.get('status') === 'cancelled' && !abort.signal.aborted) {
+          this.log(`⏹ job ${id} dibatalkan — agent dihentikan`);
+          abort.abort();
+        }
+      },
+      () => undefined,
+    );
     try {
       if (!this.opts.handler) throw new Error('Handler job belum dipasang.');
-      const ctx: JobContext = { id, job: claimed, agent, session: this.session, creds: this.opts.creds, daemon: this };
+      const ctx: JobContext = {
+        id,
+        job: claimed,
+        agent,
+        session: this.session,
+        creds: this.opts.creds,
+        daemon: this,
+        signal: abort.signal,
+      };
       // aktivitas agent (berpikir, alat, keputusan) dicatat per langkah untuk dashboard
       ctx.agent = withActivity(agent, () => ctx);
       await this.opts.handler(ctx);
     } catch (e) {
+      // job dibatalkan: statusnya sudah `cancelled`, jangan ditimpa "gagal"
+      if (abort.signal.aborted) return;
       this.log(`✗ job ${id} gagal: ${(e as Error).message}`);
       const stage = (e as { stage?: string }).stage ?? 'daemon';
       await updateDoc(ref, {
@@ -216,6 +240,7 @@ export class Daemon {
         updatedAt: serverTimestamp(),
       }).catch((err) => this.log(`tidak bisa menandai gagal: ${err.message}`));
     } finally {
+      unsubJob();
       clearInterval(renew);
       this.running.delete(id);
       await this.heartbeat().catch(() => undefined);
