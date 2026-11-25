@@ -18,13 +18,17 @@ versi, dan status bar. Skill dikelompokkan: **SKILL INTI**, **SKILL DOMAIN**, da
 
 - **Prompt inti** (`persona.md`, `review.md`) selalu dipakai. Setiap simpan membuat versi baru; versi bisa diaktifkan
   atau di-rollback, dan dibandingkan berdampingan.
+- **`review.md` adalah standar review tim**: bukti (terukur vs disimpulkan), akar masalah, kelas yang selalu P0, kontrak &
+  konkurensi, keamanan, desain dari domain, migrasi tuntas, test, sinyal vs noise, memory tim, kelengkapan & skor, dan cara
+  menulis temuan. Isinya standar, bukan urutan langkah: agent memakainya sesuai PR. Ubah di sini untuk menyesuaikan
+  standar tim.
 - **Skill** memakai format skill Claude Code: satu folder per skill berisi `SKILL.md` dengan frontmatter, plus file pendukung.
 
 ### Tidak ada skill bawaan
 
-Chef Juno tidak membawa skill bawaan. Cara mereview yang baik sudah dikuasai model; reviewer mode tujuan cukup diberi
-tujuan, konteks, dan batas — termasuk kalibrasi keparahan untuk gerbang merge (P0/P1 harus terbukti; data hilang, auth
-terlewati, dan biaya tanpa batas selalu P0). Skill dipakai untuk pengetahuan **khusus tim** yang tidak diketahui model.
+Chef Juno tidak membawa skill bawaan. Standar review umum ada di `review.md`, dan prompt bawaan mode tujuan memberi
+tujuan, prinsip, pedoman subagent, dan batas — termasuk kalibrasi keparahan untuk gerbang merge (P0/P1 harus terbukti;
+data hilang, auth terlewati, dan biaya tanpa batas selalu P0). Skill dipakai untuk pengetahuan **khusus tim** yang tidak diketahui model.
 Pengetahuan khusus repo (cara menjalankan app, akun uji, konvensi) juga ada di `CLAUDE.md`, `AGENTS.md`, skill verify,
 dan memory Chef Juno.
 
