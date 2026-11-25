@@ -229,3 +229,23 @@ test('Detail review: timeline "Proses agent" + intip kerja agent per langkah (be
   await expect(act).toContainText('Baca src/api/user.ts');
   await expect(act).toContainText('Keputusan: cache tanpa batas dilaporkan.');
 });
+
+test('Detail review: tombol Batalkan hanya untuk peminta/admin selama review berjalan; membatalkan job-nya', async ({
+  page,
+}) => {
+  await db.doc('jobs/sample-job-1').update({ status: 'running', 'trigger.userLogin': 'dev2' });
+  await db.doc('jobs/sample-job-2').update({ status: 'running', 'trigger.userLogin': 'dev3' });
+  await loginAs(page, 'uid-dev2');
+  // review orang lain → tidak ada tombol
+  await page.goto('/reviews/sample-job-2');
+  await expect(page.getByTestId('review-summary')).toBeVisible();
+  await expect(page.getByTestId('cancel-job')).toHaveCount(0);
+  // review yang dia minta → bisa dibatalkan
+  await page.goto('/reviews/sample-job-1');
+  await page.getByTestId('cancel-job').click();
+  await expect(page.getByText(/Dibatalkan \(1 job\)/)).toBeVisible();
+  await expect.poll(async () => (await db.doc('jobs/sample-job-1').get()).get('status')).toBe('cancelled');
+  expect((await db.doc('jobs/sample-job-1').get()).get('error.message')).toBe('Dibatalkan oleh @dev2');
+  // setelah dibatalkan, tombol hilang
+  await expect(page.getByTestId('cancel-job')).toHaveCount(0);
+});

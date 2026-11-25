@@ -39,7 +39,12 @@ dari PR yang ditutup), `recap` (narasi rapor).
 | `completed` | Hasil sudah ditulis mesin, menunggu diposting |
 | `posted` | Sudah tampil di PR |
 | `failed` | Gagal (tahap tercatat: agent, parse, timeout, leak, lease, stale, …) |
-| `cancelled` | Dibatalkan (mis. PR ditutup) |
+| `cancelled` | Dibatalkan: PR ditutup, digantikan review untuk commit yang lebih baru, atau tombol **Batalkan** |
+
+**Membatalkan.** Di detail review, admin atau orang yang meminta review melihat tombol **Batalkan review** (atau
+**Batalkan uji aplikasi**) selama review/ujinya berjalan. Review dan uji aplikasi turunannya dibatalkan; mesin yang
+mengerjakannya langsung menghentikan agent (app sisa uji tetap dibereskan) dan status commit **Chef Juno** diberi tahu.
+Minta review untuk commit baru di PR yang sama → review & uji commit lama yang belum selesai otomatis dibatalkan.
 
 ## Status merge di dashboard
 

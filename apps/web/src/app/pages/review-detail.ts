@@ -3,6 +3,9 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { collection, doc, query, where } from 'firebase/firestore';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { MatButton } from '@angular/material/button';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { AuthService } from '../core/auth.service';
 import { CjPage } from '../ui/page';
 import { miniInline, miniMarkdown } from '../core/md';
 import { CjChip, STATUS_TONE } from '../ui/chip';
@@ -26,7 +29,7 @@ interface ActEvent {
 
 @Component({
   selector: 'cj-review-detail',
-  imports: [CjPage, CjChip, CjEmptyState, CjEvidence, MatExpansionModule, RouterLink],
+  imports: [CjPage, CjChip, CjEmptyState, CjEvidence, MatExpansionModule, RouterLink, MatButton],
   template: `
     @let j = job().data;
     <cj-page back="/reviews" backLabel="Review Kode" icon="rate_review" [heading]="j ? 'PR #' + j.d['pr']?.number + ' — ' + (j.d['pr']?.title ?? '') : 'Detail review'">
@@ -84,6 +87,11 @@ interface ActEvent {
               @if (sc !== undefined && sc !== null) {<cj-chip [tone]="sc >= 4 ? 'success' : sc >= 3 ? 'warning' : 'error'">Skor {{ sc }}/5</cj-chip>}
               @if (r?.reviewCompletion === 'incomplete') {<cj-chip tone="warning" icon="rule">Review sebagian</cj-chip>}
               <cj-chip>prompt persona v{{ j.d['promptVersions']?.persona }} / review v{{ j.d['promptVersions']?.review }}</cj-chip>
+              @if (canCancel()) {
+                <button matButton="outlined" type="button" class="cancel" data-testid="cancel-job" [disabled]="cancelling()" (click)="cancel()">
+                  <span class="material-symbols-rounded" aria-hidden="true">stop_circle</span>{{ cancelling() ? 'Membatalkan…' : (active(j.d['status']) ? 'Batalkan review' : 'Batalkan uji aplikasi') }}
+                </button>
+              }
             </div>
             @if (r?.reviewCompletion === 'incomplete') {
               <p class="partial" role="status" data-testid="review-partial"><span class="material-symbols-rounded" aria-hidden="true">rule</span>
@@ -316,6 +324,30 @@ export class ReviewDetailPage {
   );
   protected readonly history = computed(() => [...this.prJobs().data].sort((a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0)));
   protected statusLabel = (s: string) => STATUS_LABEL[s] ?? s;
+  private readonly auth = inject(AuthService);
+  private readonly snack = inject(MatSnackBar);
+  protected readonly cancelling = signal(false);
+  protected active = (s: unknown) => ['queued', 'claimed', 'running'].includes(String(s));
+  /** review atau uji aplikasinya masih berjalan, dan yang melihat adalah admin atau peminta review ini */
+  protected readonly canCancel = computed(() => {
+    const d = this.job().data?.d;
+    if (!d) return false;
+    const running = this.active(d['status']) || this.active(this.appJob().data?.d['status']);
+    const me = this.auth.membership()?.githubLogin?.toLowerCase();
+    const requester = String((d['trigger'] as { userLogin?: string } | undefined)?.userLogin ?? '').toLowerCase();
+    return running && (this.auth.isAdmin() || (!!me && me === requester));
+  });
+  async cancel() {
+    this.cancelling.set(true);
+    try {
+      const r = await this.fb.call<{ jobId: string }, { cancelled: string[] }>('cancelJob')({ jobId: this.jobId() });
+      this.snack.open(`Dibatalkan (${r.cancelled.length} job). Mesin menghentikan agent-nya.`, 'Tutup', { duration: 4000 });
+    } catch (e) {
+      this.snack.open(`Gagal membatalkan: ${(e as Error).message}`, 'Tutup', { duration: 6000 });
+    } finally {
+      this.cancelling.set(false);
+    }
+  }
   protected readonly sorted = computed(() => [...this.findings().data].sort((a, b) => a.severity.localeCompare(b.severity)));
   protected readonly posted = computed(() => this.sorted().filter((f) => !f.held));
   protected readonly heldRows = computed(() => this.sorted().filter((f) => !!f.held));

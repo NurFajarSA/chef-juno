@@ -51,9 +51,12 @@ export function runProc(
     env?: NodeJS.ProcessEnv;
     /** dipanggil per baris stdout selagi proses berjalan (aktivitas agent langsung) */
     onLine?: (line: string) => void;
+    /** job dibatalkan → proses dihentikan (SIGTERM, lalu SIGKILL bila bandel) */
+    signal?: AbortSignal;
   } = {},
 ): Promise<ProcResult> {
   return new Promise((resolve, reject) => {
+    if (opts.signal?.aborted) return reject(new AgentError('Job dibatalkan', 'cancelled'));
     const child = spawn(bin, args, { cwd: opts.cwd, env: opts.env ?? cleanEnv(), stdio: ['pipe', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
@@ -78,9 +81,18 @@ export function runProc(
       if (timer) clearTimeout(timer);
       reject(new AgentError(`Gagal menjalankan ${bin}: ${e.message}`));
     });
+    let aborted = false;
+    const onAbort = () => {
+      aborted = true;
+      child.kill('SIGTERM');
+      setTimeout(() => child.kill('SIGKILL'), 5000).unref();
+    };
+    opts.signal?.addEventListener('abort', onAbort, { once: true });
     child.on('close', (code) => {
       if (timer) clearTimeout(timer);
-      if (timedOut) reject(new AgentError(`Agent melewati batas waktu ${opts.timeoutMs} ms`, 'timeout'));
+      opts.signal?.removeEventListener('abort', onAbort);
+      if (aborted) reject(new AgentError('Job dibatalkan', 'cancelled'));
+      else if (timedOut) reject(new AgentError(`Agent melewati batas waktu ${opts.timeoutMs} ms`, 'timeout'));
       else resolve({ code, stdout, stderr });
     });
     child.stdin.on('error', () => undefined);

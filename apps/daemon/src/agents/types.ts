@@ -21,6 +21,8 @@ export interface RunOptions {
   trusted?: boolean;
   /** aktivitas agent selagi berjalan (berpikir, alat, teks) untuk dashboard */
   onEvent?: (e: AgentEvent) => void;
+  /** job dibatalkan → proses agent dihentikan */
+  signal?: AbortSignal;
 }
 
 export interface RunResult {
@@ -47,7 +49,7 @@ export interface AgentRunner {
 export class AgentError extends Error {
   constructor(
     message: string,
-    readonly stage: 'agent' | 'parse' | 'timeout' | 'leak' = 'agent',
+    readonly stage: 'agent' | 'parse' | 'timeout' | 'leak' | 'cancelled' = 'agent',
   ) {
     super(message);
   }

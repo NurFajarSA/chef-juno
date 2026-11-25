@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Cancel a review from its detail page (admin or whoever requested it). Its app test is cancelled too, the machine stops the agent at once, and the commit status says it was cancelled.
+- A review for a newer commit of the same pull request cancels the reviews and app tests still running for older commits.
+
+### Fixed
+
+- App-test screenshots are converted with ImageMagick outside macOS.
+
 ## [0.1.0] - 2026-11-25
 
 First public release.
