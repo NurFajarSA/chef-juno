@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DEFAULT_PROMPTS, DEFAULT_SKILLS } from '@chefjuno/shared';
+import { DEFAULT_PROMPTS } from '@chefjuno/shared';
 import { admin, callFn, clearAuth, clearFirestore, idTokenFor } from '../helpers.js';
 
 // Instalasi baru: database kosong, hanya ada admin pertama (hasil bootstrap) dan satu anggota biasa.
@@ -23,22 +23,16 @@ describe('setupWorkspace (onboarding admin pertama)', () => {
     expect((await db.doc('settings/global').get()).exists).toBe(false);
   });
 
-  it('init: membuat settings default + prompt persona/review v1 + skill bawaan aktif, mengembalikan link pasang GitHub App', async () => {
+  it('init: membuat settings default + prompt persona/review v1 (tanpa skill bawaan), mengembalikan link pasang GitHub App', async () => {
     const r = await callFn<{ created: string[]; githubAppInstallUrl: string }>(
       'setupWorkspace',
       { action: 'init' },
       adminTok,
     );
     expect(r.ok, JSON.stringify(r.error)).toBe(true);
-    expect(r.result!.created.sort()).toEqual(
-      ['prompt:persona', 'prompt:review', 'settings', ...DEFAULT_SKILLS.map((k) => `skill:${k.slug}`)].sort(),
-    );
-    const sk = (await db.doc('skills/bukti').get()).data()!;
-    // skill bawaan menyimpan kategori (inti = prinsip)
-    expect(sk).toMatchObject({ source: 'default', enabled: true, latestVersion: 1, category: 'inti' });
-    const skv = (await db.doc('skills/bukti/versions/1').get()).data()!;
-    expect(skv.files['SKILL.md']).toContain('Bukti, bukan pendapat');
-    expect(skv.authorUid).toBe('system');
+    expect(r.result!.created.sort()).toEqual(['prompt:persona', 'prompt:review', 'settings']);
+    // cara mereview diserahkan ke model: tidak ada skill yang dipasang
+    expect((await db.collection('skills').get()).size).toBe(0);
     expect(r.result!.githubAppInstallUrl).toBe('https://github.com/apps/chefjuno-demo/installations/new');
     const s = (await db.doc('settings/global').get()).data()!;
     expect(s).toMatchObject({ maxInlineComments: 10, preferredAgent: 'any', botHandle: 'chefjuno' });
@@ -51,20 +45,20 @@ describe('setupWorkspace (onboarding admin pertama)', () => {
     expect(v1.authorLogin).toBe('pemilik');
   });
 
-  it('init idempoten: tidak menimpa setting, prompt, atau skill bawaan yang sudah diedit/dimatikan tim', async () => {
+  it('init idempoten: tidak menimpa setting, prompt, atau skill tim', async () => {
     await db.doc('settings/global').update({ maxInlineComments: 3 });
-    await db.doc('skills/akar-masalah').update({ enabled: false });
-    await db
-      .doc('skills/sinyal-bukan-noise/versions/1')
-      .update({ authorUid: 'uid-pemilik', files: { 'SKILL.md': 'diedit tim' } });
+    await db.doc('skills/flutter-tim').set({ name: 'flutter-tim', enabled: false, latestVersion: 1 });
     await db.doc('prompts/review/versions/1').update({ content: 'sudah diubah' });
     const r = await callFn<{ created: string[] }>('setupWorkspace', { action: 'init' }, adminTok);
     expect(r.ok, JSON.stringify(r.error)).toBe(true);
     expect(r.result!.created).toEqual([]);
     expect((await db.doc('settings/global').get()).get('maxInlineComments')).toBe(3);
     expect((await db.doc('prompts/review/versions/1').get()).get('content')).toBe('sudah diubah');
-    expect((await db.doc('skills/akar-masalah').get()).get('enabled')).toBe(false);
-    expect((await db.doc('skills/sinyal-bukan-noise').get()).get('latestVersion')).toBe(1);
+    expect((await db.doc('skills/flutter-tim').get()).data()).toEqual({
+      name: 'flutter-tim',
+      enabled: false,
+      latestVersion: 1,
+    });
   });
 
   it('complete: menandai onboarding selesai + auditLog; aksi tak dikenal ditolak', async () => {

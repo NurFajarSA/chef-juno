@@ -186,9 +186,6 @@ export function changeGap(
 export const TESTER_NUDGE = (gap: string) =>
   `PERHATIAN: percobaan sebelumnya belum membuktikan ALUR YANG DIUBAH PR (${gap}). Ini prioritas utama: siapkan lingkungan & data yang dibutuhkan, jalankan alur yang diubah sampai selesai, simpan screenshot buktinya ke folder "Simpan screenshot ke", dan sebut nama berkasnya di change.shots. Kalau tetap tidak bisa, jelaskan penghalangnya dengan jujur (status inconclusive).`;
 
-/** skill inti yang juga mengikat penguji aplikasi: belum teruji ≠ lulus, sebut yang tidak dicoba */
-export const TESTER_SKILLS = ['bukti', 'jujur-soal-kelengkapan'];
-
 async function runAgentAppTest(
   ctx: JobContext,
   o: {
@@ -253,9 +250,8 @@ async function runAgentAppTest(
     // prinsip pembuktian dari skill inti tim (versi yang dikunci saat review)
     const testerSkills = await loadSkillsSection(
       ctx,
-      ((ctx.job.skillVersions ?? []) as { slug: string; version: number }[]).filter((s) =>
-        TESTER_SKILLS.includes(s.slug),
-      ),
+      // skill tim berkategori inti (prinsip) juga mengikat penguji; skill domain tidak
+      (ctx.job.skillVersions ?? []) as { slug: string; version: number }[],
       [],
     )
       .then((x) => x.coreText)

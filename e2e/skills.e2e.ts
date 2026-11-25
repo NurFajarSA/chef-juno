@@ -74,21 +74,32 @@ test('Skills (editor): import massal .md + .zip → pratinjau → aktif; pohon f
   expect(v2.files['references/contoh.md']).toContain('query buruk');
 });
 
-test('Skills (editor): admin memulihkan skill bawaan dari repo → tampil aktif dengan badge "bawaan"', async ({
-  page,
-}) => {
+test('Skills (editor): tanpa skill bawaan; skill tim dikelompokkan menurut kategori', async ({ page }) => {
+  await db.doc('skills/flutter-tim').set({
+    name: 'flutter-tim',
+    description: 'Konvensi widget tim.',
+    paths: ['**/*.dart'],
+    category: 'domain',
+    enabled: true,
+    latestVersion: 1,
+    fileCount: 1,
+    source: 'import',
+  });
+  await db.doc('skills/flutter-tim/versions/1').set({
+    version: 1,
+    files: {
+      'SKILL.md': '---\nname: flutter-tim\ndescription: Konvensi widget tim.\ncategory: domain\n---\n\n# Isi\n',
+    },
+    message: 'Impor',
+    authorUid: 'uid-admin1',
+    authorLogin: 'admin1',
+    parentVersion: null,
+  });
   await loginAs(page, 'uid-admin1');
   await page.getByRole('link', { name: 'Skills', exact: true }).click();
-  await page.getByTestId('skills-restore').click();
-  await expect(page.getByText('Skill bawaan dipulihkan.')).toBeVisible();
-  const row = page.getByTestId('skills-list').locator('[data-skill="bukti"]');
-  await expect(row).toContainText('bawaan');
-  expect((await db.doc('skills/bukti').get()).data()).toMatchObject({
-    source: 'default',
-    enabled: true,
-    category: 'inti',
-  });
-  // daftar dikelompokkan: skill inti (prinsip); kelompok domain hanya muncul bila tim mengimpor skill domain
-  await expect(page.getByTestId('skills-group-inti')).toContainText('SKILL INTI · prinsip, selalu dipakai');
-  await expect(page.getByTestId('skills-group-domain')).toHaveCount(0);
+  await expect(page.getByTestId('skills-group-domain')).toContainText('SKILL DOMAIN');
+  await expect(page.getByTestId('skills-list').locator('[data-skill="flutter-tim"]')).toBeVisible();
+  // tidak ada skill bawaan untuk dipulihkan: kelompok inti kosong, tombol pulihkan hilang
+  await expect(page.getByTestId('skills-group-inti')).toHaveCount(0);
+  await expect(page.getByTestId('skills-restore')).toHaveCount(0);
 });

@@ -2,7 +2,6 @@
 // Deterministik: waktu relatif terhadap `now`.
 import { Timestamp } from 'firebase-admin/firestore';
 import { readFileSync } from 'node:fs';
-import { DEFAULT_SKILLS } from '@chefjuno/shared';
 
 // Screenshot asli dari runner uji aplikasi terhadap aplikasi fixture (total keranjang "Rp NaN").
 const BUKTI_JPEG = readFileSync(
@@ -57,7 +56,18 @@ export async function seedSample(db, now = Date.now()) {
     },
   };
   for (const sk of [
-    ...DEFAULT_SKILLS.filter((x) => ['bukti', 'kontrak-dan-dampak', 'sinyal-bukan-noise'].includes(x.slug)),
+    ...[
+      ['bukti', 'Contoh skill tim: bedakan temuan terukur dari yang disimpulkan.'],
+      ['kontrak-dan-dampak', 'Contoh skill tim: kontrak API dan pemanggil lain.'],
+      ['sinyal-bukan-noise', 'Contoh skill tim: hanya temuan yang layak waktu manusia.'],
+    ].map(([slug, description]) => ({
+      slug,
+      name: slug,
+      description,
+      paths: [],
+      category: 'inti',
+      files: { 'SKILL.md': `---\nname: ${slug}\ndescription: ${description}\ncategory: inti\n---\n\n# ${slug}\n` },
+    })),
     teamSkill,
   ]) {
     batch.set(db.doc(`skills/${sk.slug}`), {
@@ -67,7 +77,7 @@ export async function seedSample(db, now = Date.now()) {
       category: sk.category ?? null,
       latestVersion: 1,
       fileCount: Object.keys(sk.files).length,
-      source: sk === teamSkill ? 'import' : 'default',
+      source: 'import',
       enabled: true,
     });
     batch.set(db.doc(`skills/${sk.slug}/versions/1`), {

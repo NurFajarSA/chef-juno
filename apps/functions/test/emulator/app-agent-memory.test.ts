@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { clearAuth, clearFirestore, seedDefaultSkills } from '../helpers.js';
+import { clearAuth, clearFirestore, seedTeamSkills } from '../helpers.js';
 import { createHarness, REPO_ID, type Harness } from '../harness.js';
 
 // Uji aplikasi oleh satu agent (seperti lane functional reviewer-agent) + memory Chef Juno:
@@ -18,7 +18,7 @@ beforeAll(async () => {
   await clearFirestore();
   await clearAuth();
   h = await createHarness();
-  await seedDefaultSkills();
+  await seedTeamSkills();
   await h.startMachine({ agents: ['claude'] });
   writeFileSync(
     join(dirname(h.recordDir), 'app-local.json'),
@@ -69,10 +69,10 @@ describe('memory Chef Juno & uji aplikasi oleh agent', () => {
     // penguji: satu agent yang boleh menjalankan perintah (seperti lane functional), membaca memory
     const tester = recs().find((r) => String(r.system).includes('penguji aplikasi independen'));
     expect(tester.argv).toContain('bypassPermissions');
-    // prinsip pembuktian dari skill inti ikut mengikat penguji (hanya bukti & jujur-soal-kelengkapan)
+    // skill tim berkategori inti ikut mengikat penguji; skill domain tidak
     expect(tester.system).toContain('(`bukti`)');
     expect(tester.system).toContain('(`jujur-soal-kelengkapan`)');
-    expect(tester.system).not.toContain('(`kesederhanaan`)');
+    expect(tester.system).not.toContain('(`flutter-tim`)');
     expect(tester.prompt).toContain(
       '## Memory Chef Juno (fakta yang sudah dipelajari)\n- akun uji butuh langganan premium',
     );
@@ -179,7 +179,7 @@ describe('memory Chef Juno & uji aplikasi oleh agent', () => {
     await clearFirestore();
     await clearAuth();
     h = await createHarness();
-    await seedDefaultSkills();
+    await seedTeamSkills();
     writeFileSync(
       join(dirname(h.recordDir), 'app-local.json'),
       JSON.stringify({ [h.repo.fullName]: { agentTest: { instructions: 'fake', readFirst: [] } } }),

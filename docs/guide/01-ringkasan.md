@@ -58,4 +58,4 @@ flowchart LR
   bisa dijelaskan ulang kapan pun.
 - **Jujur soal batas.** Review yang tidak bisa dinilai penuh diberi label *Review sebagian*, bukan "bersih"; PR yang
   belum dicoba di aplikasi diberi status *Belum teruji*, bukan lulus.
-- **Jarang memblokir, selalu membuktikan.** Prinsip 10 skill inti: temuan yang memblokir harus punya bukti.
+- **Jarang memblokir, selalu membuktikan.** Temuan yang memblokir (P0/P1) harus punya bukti.

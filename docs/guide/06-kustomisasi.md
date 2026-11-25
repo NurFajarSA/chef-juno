@@ -7,7 +7,7 @@ flowchart TB
   A["Instruksi tambahan di perintah<br/><code>lapor @chefjuno fokus ke query SQL</code>"] --> B
   B["Aturan tim (Memory) — disetujui admin"] --> C
   C["File aturan repo di branch tujuan<br/><code>.chefjuno/rules.md</code> · <code>CLAUDE.md</code> · <code>AGENTS.md</code>"] --> D
-  D["Skill inti & skill tim yang aktif"] --> E
+  D["Skill tim yang aktif"] --> E
   E["Prompt inti: persona & instruksi review"]
 ```
 
@@ -20,33 +20,16 @@ versi, dan status bar. Skill dikelompokkan: **SKILL INTI**, **SKILL DOMAIN**, da
   atau di-rollback, dan dibandingkan berdampingan.
 - **Skill** memakai format skill Claude Code: satu folder per skill berisi `SKILL.md` dengan frontmatter, plus file pendukung.
 
-### Skill inti (bawaan)
+### Tidak ada skill bawaan
 
-Chef Juno hanya membawa **10 skill inti** (`category: inti`) — prinsip cara berpikir dan membuktikan yang berlaku di
-repo dan stack apa pun, dengan semangat **jarang memblokir, selalu membuktikan**:
+Chef Juno tidak membawa skill bawaan. Cara mereview yang baik sudah dikuasai model; reviewer mode tujuan cukup diberi
+tujuan, konteks, dan batas — termasuk kalibrasi keparahan untuk gerbang merge (P0/P1 harus terbukti; data hilang, auth
+terlewati, dan biaya tanpa batas selalu P0). Skill dipakai untuk pengetahuan **khusus tim** yang tidak diketahui model.
+Pengetahuan khusus repo (cara menjalankan app, akun uji, konvensi) juga ada di `CLAUDE.md`, `AGENTS.md`, skill verify,
+dan memory Chef Juno.
 
-| Skill | Inti |
-|---|---|
-| `bukti` | Bedakan temuan terukur (dibuktikan dengan menjalankan sesuatu) dari yang disimpulkan; hanya yang terbukti boleh memblokir |
-| `akar-masalah` | Telusuri sampai penyebab, cari saudaranya di pemanggil & tempat lain |
-| `kontrak-dan-dampak` | Kontrak API, klien lama, data & konkurensi, migrasi, waktu |
-| `desain-dari-domain` | Tipe & struktur data mengikuti domain, validasi di batas sistem |
-| `migrasi-tuntas` | Cara baru → semua pemakai cara lama dipindah, cara lama dihapus |
-| `kesederhanaan` | Perubahan terkecil, lapisan seminimal mungkin |
-| `komentar-kode` | Komentar & dokumentasi di kode yang salah atau tidak perlu |
-| `sinyal-bukan-noise` | Kapan masalah pantas jadi temuan, label Nit/Consider/FYI, temuan palsu yang umum |
-| `jujur-soal-kelengkapan` | Review sebagian tidak pernah dianggap bersih; sebut yang tidak dinilai |
-| `memory-tim` | Pakai memory & code map, catat pelajaran baru |
-
-Skill inti selalu dimuat ke putaran spesialis, dan juga diberikan ke **validator** dan **reviewer akhir**. Penguji
-aplikasi mendapat `bukti` dan `jujur-soal-kelengkapan`.
-
-Tidak ada lagi skill domain bawaan (Flutter, Firebase, TypeScript, …): pengetahuan teknis umum sudah dikuasai model.
-Pengetahuan **khusus repo** (cara menjalankan app, akun uji, konvensi) ada di adapter repo — `CLAUDE.md`, `AGENTS.md`,
-skill verify — dan di memory Chef Juno.
-
-Skill bawaan dipasang aktif saat Setup dan bisa dipulihkan lewat tombol *Pulihkan skill bawaan*. Skill bawaan yang belum
-diedit tim ikut diperbarui saat isi repo Chef Juno berubah.
+Skill tim dengan `category: inti` dipakai di mana saja: reviewer, validator & reviewer akhir pipeline lama, dan penguji
+aplikasi.
 
 ### Skill tim (domain)
 

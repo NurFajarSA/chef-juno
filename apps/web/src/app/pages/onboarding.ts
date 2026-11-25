@@ -72,7 +72,7 @@ const STEPS: Step[] = [
             </ul>
             <div class="status" data-testid="setup-init">
               @if (init() === 'busy') {<mat-progress-spinner diameter="20" mode="indeterminate" /> Menyiapkan workspace…}
-              @else if (init() === 'ok') {<span class="material-symbols-rounded ok" aria-hidden="true">check_circle</span> Workspace siap: setting review, prompt inti, dan skill bawaan reviewer sudah dipasang.}
+              @else if (init() === 'ok') {<span class="material-symbols-rounded ok" aria-hidden="true">check_circle</span> Workspace siap: setting review dan prompt inti sudah dipasang.}
               @else if (init() === 'error') {<span class="material-symbols-rounded err" aria-hidden="true">error</span> Gagal menyiapkan workspace: {{ initError() }} <button matButton (click)="runInit()">Coba lagi</button>}
             </div>
           }
