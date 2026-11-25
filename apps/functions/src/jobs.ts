@@ -16,7 +16,8 @@ export async function jobConfig(): Promise<JobConfig> {
     minConfidence: typeof s.minConfidence === 'number' ? s.minConfidence : DEFAULT_SETTINGS.minConfidence,
     // semua temuan (P0–P2) selalu diposting (keputusan pemilik 25 Nov 2026); setting lama diabaikan
     maxPostPriority: 'P2',
-    reviewMode: ['auto', 'standard', 'deep'].includes(s.reviewMode) ? s.reviewMode : DEFAULT_SETTINGS.reviewMode,
+    // mode review tidak diatur dari Pengaturan: bawaan mode tujuan; pipeline lama hanya lewat perintah (`lapor @chefjuno dalam`)
+    reviewMode: 'auto',
     // tingkat model per peran tidak lagi diatur (default: Sonnet kerja, Opus validasi & reviewer akhir)
     ...(s.tierModels && typeof s.tierModels === 'object' ? { tierModels: s.tierModels } : {}),
     ...(s.tierEffort && typeof s.tierEffort === 'object' ? { tierEffort: s.tierEffort } : {}),

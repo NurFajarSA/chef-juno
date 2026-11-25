@@ -34,12 +34,12 @@ describe('review mendalam & verifikasi', () => {
     expect(done.data.trigger.instruction).toBe('fokus null-check');
     const meta = done.data.result.meta;
     expect(meta.mode).toBe('deep');
-    // satu standar: kata "dalam" tidak lagi memilih mode — semua PR kode direview penuh
+    // kata "dalam" di perintah memilih pipeline lama (bawaan: mode tujuan)
     expect(meta.modeDecision).toEqual({
-      requested: 'auto',
+      requested: 'deep',
       chosen: 'deep',
-      by: 'aturan',
-      reason: 'satu standar: review penuh + uji aplikasi',
+      by: 'perintah',
+      reason: 'pipeline mendalam diminta',
     });
     const roles = (meta.passes as { role: string; model: string; ok: boolean }[]).map((p) => `${p.role}:${p.model}`);
     expect(roles[0]).toBe('triage:sonnet');
@@ -141,20 +141,22 @@ describe('review mendalam & verifikasi', () => {
     expect(v.newIssues.some((i: string) => i.includes('src/api/user.ts'))).toBe(true);
     expect(v.newIssues.some((i: string) => i.includes('src/services/profile.ts'))).toBe(true);
     expect(v.baseIssueLines).toBe(0);
-    // satu standar: putaran spesialis (Sonnet) lalu reviewer akhir (Opus)
-    const roles = (job.result.meta.passes as { role: string }[]).map((p) => p.role);
-    expect(roles).toContain('lens');
-    expect(roles.at(-1)).toBe('lead');
+    // bawaan: mode tujuan — satu agent (model terkuat, akses penuh), setting mode lama diabaikan
+    expect((job.result.meta.passes as { role: string }[]).map((p) => p.role)).toEqual(['review']);
+    expect(job.result.meta.mode).toBe('goal');
     const rec = records()
       .slice(before)
       .find((r) => String(r.prompt).includes('# PR #1') && String(r.prompt).includes('```diff'))!;
+    expect(rec.system).toContain('# Tujuan');
+    expect(rec.argv).toContain('bypassPermissions');
+    expect(argModel(rec)).toBe('opus');
     expect(rec.prompt).toContain('## Analisis statis (verifikasi empiris, base vs head)');
     expect(rec.prompt).toContain('undocumented_cache_option');
   });
 
   it('tanpa Docker/Podman: verifikasi dilewati dengan alasan, review tetap jalan', async () => {
     process.env.CHEFJUNO_CONTAINER_BIN = '/tidak/ada/docker';
-    // satu standar: PR kode selalu direview penuh (setting mode lama diabaikan)
+    // setting mode lama diabaikan: bawaan mode tujuan
     await h.db.doc('settings/global').update({ reviewMode: 'standard' });
     await h.comment('lapor @chefjuno');
     await h.waitFor(
@@ -165,7 +167,7 @@ describe('review mendalam & verifikasi', () => {
     const jobs = (await h.db.collection('jobs').where('status', '==', 'posted').get()).docs.map((d) => d.data());
     const last = jobs.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())[0];
     expect(last.result.meta.verification).toEqual({ ran: false, reason: 'Docker/Podman tidak tersedia di mesin ini' });
-    expect(last.result.meta.modeDecision).toMatchObject({ chosen: 'deep', by: 'aturan' });
-    expect(last.result.meta.passes.map((p: { role: string }) => p.role)).toContain('lens');
+    expect(last.result.meta.modeDecision).toMatchObject({ chosen: 'goal', by: 'aturan' });
+    expect(last.result.meta.passes.map((p: { role: string }) => p.role)).toEqual(['review']);
   });
 });

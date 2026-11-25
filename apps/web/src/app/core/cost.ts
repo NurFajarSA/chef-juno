@@ -116,7 +116,7 @@ export function timing(jobs: JobRow[]): TimingSummary {
 }
 
 export interface ModeRow {
-  mode: 'standard' | 'deep';
+  mode: 'goal' | 'standard' | 'deep';
   reviews: number;
   avgTokens: number | null;
   medianAgentMs: number | null;
@@ -133,7 +133,7 @@ export function tokensPerReview(jobs: JobRow[]): { reviews: number; avg: number 
 
 export function byMode(jobs: JobRow[]): ModeRow[] {
   const done = jobs.filter((j) => j.type === 'review' && j.status === 'posted');
-  return (['standard', 'deep'] as const).map((mode) => {
+  return (['standard', 'deep', 'goal'] as const).map((mode) => {
     const js = done.filter((j) => (j.mode ?? 'standard') === mode);
     // rata-rata hanya dari review yang punya datanya
     const withTok = js.filter(hasTokens);

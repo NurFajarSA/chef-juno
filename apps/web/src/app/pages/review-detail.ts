@@ -140,7 +140,7 @@ interface ActEvent {
               <dt>Commit</dt><dd><code>{{ (j.d['pr']?.headSha ?? '').slice(0, 7) }}</code></dd>
               <dt>Dibuat</dt><dd>{{ dt(j.d['createdAt']) }}</dd>
               <dt>Percobaan</dt><dd>{{ j.d['attempts'] }}</dd>
-              <dt>Mode</dt><dd data-testid="review-mode">{{ r?.meta?.mode === 'deep' ? 'Mendalam' : 'Standar' }}@if (r?.meta?.modeDecision; as md) {<span class="cj-muted"> · {{ md.requested === 'auto' ? 'dipilih otomatis (' + md.by + ')' : 'dari ' + md.by }}: {{ md.reason }}</span>}</dd>
+              <dt>Mode</dt><dd data-testid="review-mode">{{ r?.meta?.mode === 'goal' ? 'Tujuan' : r?.meta?.mode === 'deep' ? 'Mendalam' : 'Standar' }}@if (r?.meta?.modeDecision; as md) {<span class="cj-muted"> · {{ md.requested === 'auto' ? 'dipilih otomatis (' + md.by + ')' : 'dari ' + md.by }}: {{ md.reason }}</span>}</dd>
             </dl>
             @if (r?.meta?.passes?.length) {
               <details class="passes" data-testid="review-passes">

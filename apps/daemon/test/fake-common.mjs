@@ -275,6 +275,26 @@ export function appAgentOutput(prompt, system = '') {
   };
 }
 
+/** Agent mode tujuan palsu: hasil review + dampak, diagram, walkthrough dalam satu jawaban. */
+export function goalOutput(prompt, system = '') {
+  const r = reviewOutput(prompt, system);
+  return {
+    ...r,
+    impact: 'sedang',
+    diagram: 'flowchart TD\n  A[Permintaan] --> B[Cache]\n  B --> C[Respons]',
+    walkthrough: [
+      {
+        area: 'Layanan pengguna',
+        files: diffFiles(prompt)
+          .map((x) => x.path)
+          .slice(0, 3),
+        change: 'fake: menambah opsi cache.',
+      },
+    ],
+    effortMinutes: 12,
+  };
+}
+
 export function outputFor(schema, prompt, system = '') {
   const props = Object.keys(schema?.properties ?? {});
   if (props.includes('lenses')) return triageOutput();
@@ -283,6 +303,7 @@ export function outputFor(schema, prompt, system = '') {
   if (props.includes('verdicts')) return appJudgeOutput(prompt);
   if (props.includes('valid')) return validateOutput(prompt);
   if (props.includes('keep')) return leadOutput(prompt);
+  if (props.includes('score') && props.includes('walkthrough')) return goalOutput(prompt, system);
   if (props.includes('score')) return reviewOutput(prompt, system);
   if (props.includes('modules')) return moduleOutput(prompt);
   if (props.includes('rules')) return learnOutput(prompt);

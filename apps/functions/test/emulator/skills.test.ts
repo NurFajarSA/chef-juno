@@ -125,10 +125,10 @@ describe('skill tim', () => {
     expect(q.data.skillVersions).toEqual([{ slug: 'sql-review', version: 3 }]);
     await h.startMachine({ agents: ['claude'] });
     await h.waitJob((j) => j.type === 'review' && j.status === 'posted');
-    // putaran review (bukan triase/validator) memuat skill tim
+    // agent review memuat skill tim
     const rec = readdirSync(h.recordDir)
       .map((f) => JSON.parse(readFileSync(join(h.recordDir, f), 'utf8')))
-      .find((r) => String(r.system).includes('Fokus putaran ini: correctness'));
+      .find((r) => String(r.system).includes('# Tujuan'));
     expect(rec.system).toContain('# Skill tim');
     expect(rec.system).toContain('SKILL-SQL v3: cari N+1.');
     expect(rec.system).toContain('### File: references/contoh.md');
@@ -181,8 +181,8 @@ describe('skill tim', () => {
     const recs = readdirSync(h.recordDir)
       .map((f) => JSON.parse(readFileSync(join(h.recordDir, f), 'utf8')))
       .filter((r) => String(r.prompt).includes('# PR #1'))
-      // putaran review correctness (bukan triase/validator/reviewer akhir)
-      .filter((r) => String(r.system).includes('Fokus putaran ini: correctness'))
+      // agent review (mode tujuan)
+      .filter((r) => String(r.system).includes('# Tujuan'))
       .sort((x, y) => Date.parse(x.at) - Date.parse(y.at));
     expect(recs.at(-1).system).toContain('SKILL-SQL v3');
     expect(recs.at(-1).system).not.toContain('SKILL-FLUTTER');

@@ -64,7 +64,7 @@ describe('memory Chef Juno & uji aplikasi oleh agent', () => {
     const app = await h.waitJob((j) => j.type === 'app-verify' && j.status === 'posted', 90_000);
 
     // reviewer melihat fakta yang diingat
-    const lens = recs().find((r) => String(r.system).includes('Fokus putaran ini: correctness'));
+    const lens = recs().find((r) => String(r.system).includes('# Tujuan'));
     expect(lens.prompt + lens.system).toContain('Fakta yang diingat: akun uji butuh langganan premium');
     // penguji: satu agent yang boleh menjalankan perintah (seperti lane functional), membaca memory
     const tester = recs().find((r) => String(r.system).includes('penguji aplikasi independen'));
@@ -168,9 +168,9 @@ describe('memory Chef Juno & uji aplikasi oleh agent', () => {
     expect(tester.system).toContain(
       'Kalau brief punya bagian "Alur yang diubah PR" dan\n   "Cara mencoba" dari penulis',
     );
-    // reviewer (triase, putaran, reviewer akhir) membaca brief yang sama
-    const reviewers = recs().filter((r) => String(r.prompt).includes('## Cara mencoba (dari penulis)'));
-    expect(reviewers.length).toBeGreaterThan(1);
+    // agent review (mode tujuan) membaca brief yang sama
+    const reviewers = recs().filter((r) => String(r.system).includes('# Tujuan'));
+    expect(reviewers.some((r) => String(r.prompt).includes('## Cara mencoba (dari penulis)'))).toBe(true);
   });
 
   it('mesin tanpa emulator (--no-app) hanya mengambil review; uji aplikasi menunggu mesin yang punya emulator', async () => {

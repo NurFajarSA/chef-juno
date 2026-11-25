@@ -24,7 +24,7 @@ sequenceDiagram
   opt verifikasi statis aktif
     D->>D: analisis base vs head di container
   end
-  D->>AG: triase → putaran spesialis → validasi → reviewer akhir
+  D->>AG: tujuan + konteks + batas (agent memutuskan cara kerjanya)
   AG-->>D: JSON hasil review (divalidasi schema)
   D->>FS: job "completed" + hasil (timeline & aktivitas tampil langsung)
   FS-->>FN: trigger onJobCompleted
@@ -85,14 +85,14 @@ Daemon menyiapkan konteks:
 | Skill | 10 skill inti (selalu) + skill tim yang `paths:`-nya cocok dengan file yang berubah |
 | Verifikasi statis (opsional) | masalah analisis statis yang **baru** di PR (lihat [Kustomisasi](06-kustomisasi.md)) |
 
-Agent dijalankan dengan isolasi ketat (lihat [Keamanan](07-keamanan.md)) dan wajib mengembalikan JSON sesuai schema:
+Agent dijalankan sesuai mode (lihat [Keamanan](07-keamanan.md)) dan wajib mengembalikan JSON sesuai schema:
 temuan (`path`, `line`, `severity` P0–P2, `category`, `what`, `why`, `fix`, `suggestion`, **`confidence`**, **`trigger`**),
 `score` 0–5, `verdict`, `summary`, `lessons`, **`reviewCompletion`**, dan `uncertainty`. Output yang tidak sesuai schema,
 atau yang memuat token/rahasia mesin, membuat job gagal — tidak pernah diposting.
 
-Tidak ada pilihan mode: PR kode selalu lewat jalur penuh (triase → putaran spesialis paralel → validasi P0/P1 →
-reviewer akhir); PR yang hanya mengubah dokumentasi direview ringan tanpa uji aplikasi — lihat
-[Standar review](03-review-mendalam.md).
+Bawaan: **mode tujuan** — satu agent dengan tujuan, konteks, dan batas yang memutuskan sendiri cara memeriksa
+(boleh menjalankan test/build dan memecah kerja ke subagent). `lapor @chefjuno dalam` memakai pipeline lama yang
+read-only. PR yang hanya mengubah dokumentasi tidak diuji di aplikasi — lihat [Standar review](03-review-mendalam.md).
 
 ## 5. Posting
 

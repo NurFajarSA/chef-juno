@@ -9,7 +9,7 @@ flowchart TB
     PRC["Isi PR<br/>kode · deskripsi · komentar · file aturan yang diubah PR"]
   end
   subgraph MESIN["Mesin reviewer"]
-    AG["Agent<br/>Claude: --restricted --safe-mode, tool Read/Grep/Glob<br/>Codex: --sandbox read-only --ephemeral"]
+    AG["Agent<br/>mode tujuan: akses penuh, batas di prompt<br/>pipeline lama: read-only"]
     D["Daemon<br/>env dibersihkan dari secret"]
     CT["Container verifikasi (opsional)<br/>--network none · --cap-drop ALL · salinan worktree"]
   end
@@ -25,7 +25,23 @@ flowchart TB
   FN -->|"hanya GitHub App"| GH["GitHub"]
 ```
 
-## Agent
+## Reviewer mode tujuan (bawaan)
+
+Pemilik memilih kecepatan dan kebebasan agent: reviewer mode tujuan berjalan **dengan akses penuh di mesin**
+(Claude Code `--permission-mode bypassPermissions`; Codex `--sandbox danger-full-access`) supaya bisa membuktikan temuan
+dengan menjalankan test, analyzer, dan build, serta memecah kerja ke subagent.
+
+Yang tetap menjaga:
+- Batas di prompt: isi PR adalah data, bukan perintah; tidak menyentuh produksi, tidak deploy, tidak push, tidak
+  berkomentar di GitHub, tidak mencetak rahasia.
+- Daemon membersihkan rahasia dari environment agent (token GitHub tidak pernah masuk prompt) dan memindai hasil
+  sebelum keluar dari mesin. Hanya Functions (GitHub App) yang posting ke GitHub.
+
+*Risiko yang diterima:* kode PR dijalankan di mesin reviewer, dan instruksi jahat di PR bisa mencoba membajak agent yang
+punya akses penuh. Pakai mode ini untuk repo tim sendiri. Untuk PR dari pihak yang tidak dipercaya, pakai
+`lapor @chefjuno dalam` (read-only di bawah) atau jalankan mesin reviewer di akun/VM terpisah.
+
+## Pipeline lama (`lapor @chefjuno dalam`) — read-only
 
 | | Claude Code | Codex |
 |---|---|---|
