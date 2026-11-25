@@ -33,6 +33,16 @@ export type JobHandler = (ctx: JobContext) => Promise<void>;
 
 /** Kapasitas job sekaligus per mesin: 1–4 (default 1). */
 export const MAX_CONCURRENCY = 4;
+/**
+ * Jenis job yang boleh diambil mesin ini sekarang. Uji aplikasi: hanya di mesin yang punya emulator (bukan --no-app),
+ * dan satu per mesin — emulator & akun uji hanya satu jalur, jadi uji kedua tetap antre (bukan menunggu kunci emulator
+ * sampai batas waktu lalu dilewati).
+ */
+export function mayClaimType(type: string, s: { noApp: boolean; appRunning: boolean }): boolean {
+  if (type !== 'app-verify') return true;
+  return !s.noApp && !s.appRunning;
+}
+
 export function clampConcurrency(v: unknown): number {
   const n = Math.floor(Number(v));
   return Number.isFinite(n) ? Math.min(MAX_CONCURRENCY, Math.max(1, n)) : 1;
@@ -68,6 +78,8 @@ export class Daemon {
   private timer: NodeJS.Timeout | null = null;
   private unsub: (() => void) | null = null;
   private running = new Set<string>();
+  /** uji aplikasi yang sedang berjalan: satu per mesin (emulator & akun uji hanya satu jalur) */
+  private appRunning: string | null = null;
   private unsubMachine: (() => void) | null = null;
   private concurrency = 1;
   private stopped = false;
@@ -163,11 +175,12 @@ export class Daemon {
 
   async tryClaim(id: string, job: JobDoc) {
     if (this.stopped || this.paused || this.running.has(id) || this.running.size >= this.concurrency) return;
-    if (this.opts.noApp && job.type === 'app-verify') return; // uji aplikasi untuk mesin yang punya emulator
+    if (!mayClaimType(job.type, { noApp: !!this.opts.noApp, appRunning: !!this.appRunning })) return;
     const agent = this.pickAgent(job);
     if (!agent) return; // mesin hanya meng-claim job yang bisa ia kerjakan
     const ref = doc(this.session.db, `jobs/${id}`);
     this.running.add(id);
+    if (job.type === 'app-verify') this.appRunning = id;
     let claimed: JobDoc | null;
     try {
       claimed = await runTransaction(this.session.db, async (tx) => {
@@ -189,6 +202,7 @@ export class Daemon {
     }
     if (!claimed) {
       this.running.delete(id);
+      if (this.appRunning === id) this.appRunning = null;
       return;
     }
     this.lastUsed[agent.name] = Date.now();
@@ -243,6 +257,7 @@ export class Daemon {
       unsubJob();
       clearInterval(renew);
       this.running.delete(id);
+      if (this.appRunning === id) this.appRunning = null;
       await this.heartbeat().catch(() => undefined);
       // job lain yang antre selama mesin sibuk tidak memicu snapshot baru → coba lagi
       this.rescan();
