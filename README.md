@@ -25,8 +25,9 @@ AI reviewers read diffs well and test nothing. They report bugs that are not the
 
 ## Features
 
-**One review standard**
-- Every PR that changes code goes through the same pipeline: triage, parallel specialist passes (correctness and docs always; security, platform and team rules when relevant), validation of every P0/P1 by a stronger model, and a final reviewer that decides severity and the verdict. Docs-only changes get a light review.
+**Goal, not a recipe**
+- One agent per PR gets the goal ("is this safe to merge? prove it"), the context (PR, team rules, memory, code map) and a few hard limits. It decides how to work: how deep to go, which tests or builds to run, and whether to split the work across subagents. It runs on the strongest model of your subscription.
+- `lapor @chefjuno dalam` still runs the older read-only pipeline (triage, parallel specialist passes, validation, final reviewer).
 - Every P0–P2 finding is posted inline, with the consequence as the title, the mechanism, the trigger and a fix. Findings under the confidence threshold are kept in the dashboard instead of the PR.
 - A re-review replaces the bot's previous inline comments unless someone replied or reacted.
 
@@ -83,7 +84,7 @@ Pull request content is untrusted: code, description, comments and even a `CLAUD
 
 | Layer | What it does |
 | --- | --- |
-| Reviewer agent | Claude Code with `--restricted --safe-mode` and only `Read`, `Grep`, `Glob`; Codex with `--sandbox read-only --ephemeral`. User skills, hooks, plugins and MCP servers are off. Output must match a JSON schema. |
+| Reviewer agent | Goal mode (default): full access on the reviewer machine so it can run tests and builds; the prompt treats PR content as data and forbids touching production, deploying, pushing or posting. PR code runs on the machine, so use it for a trusted team's repositories. `lapor @chefjuno dalam`: Claude Code with `--restricted --safe-mode` and only `Read`, `Grep`, `Glob`; Codex with `--sandbox read-only --ephemeral`. Output must match a JSON schema in both. |
 | Tester agent | Trusted (it has to run the app), so it only runs where the machine owner installed a test profile in `~/.chefjuno/app-local.json`, only against a local emulator, never production, and never pushes or posts. The app it started is always stopped afterwards. |
 | Daemon | Strips secrets from the agent's environment, scans results for leaked secrets before they leave the machine. |
 | Activity log | Records thinking, tool names, files and commands, never tool output or file contents. Known secret patterns are redacted. |

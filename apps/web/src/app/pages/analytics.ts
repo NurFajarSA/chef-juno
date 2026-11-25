@@ -239,7 +239,7 @@ const STATUS_FIND: Record<string, string> = { ...OUTCOME_LABEL, pending: 'Terbuk
                 <thead><tr><th>Mode</th><th class="num">Review</th><th class="num">Panggilan / review</th><th class="num">Token / review</th><th class="num">Median waktu</th></tr></thead>
                 <tbody>
                   @for (m of modes(); track m.mode) {
-                    <tr><td>{{ m.mode === 'deep' ? 'Mendalam' : 'Standar' }}</td><td class="num">{{ m.reviews }}</td><td class="num">{{ m.avgCalls == null ? '—' : num(m.avgCalls) }}</td><td class="num">{{ m.avgTokens == null ? '—' : compact(m.avgTokens) }}</td><td class="num">{{ dur(m.medianAgentMs) }}</td></tr>
+                    <tr><td>{{ m.mode === 'goal' ? 'Tujuan' : m.mode === 'deep' ? 'Mendalam' : 'Standar' }}</td><td class="num">{{ m.reviews }}</td><td class="num">{{ m.avgCalls == null ? '—' : num(m.avgCalls) }}</td><td class="num">{{ m.avgTokens == null ? '—' : compact(m.avgTokens) }}</td><td class="num">{{ dur(m.medianAgentMs) }}</td></tr>
                   }
                 </tbody>
               </table>

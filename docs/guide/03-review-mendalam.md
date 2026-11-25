@@ -1,22 +1,35 @@
 # Standar review
 
-Chef Juno hanya punya **satu standar**: setiap PR kode direview penuh lalu **diuji di aplikasi**. Tidak ada pilihan mode.
-Kata `dalam` / `standar` di perintah, mode review, dan profil model di Pengaturan tidak lagi memilih apa pun.
+Bawaan Chef Juno adalah **mode tujuan**: satu agent menerima *tujuan*, konteks, dan batas, lalu memutuskan sendiri cara
+kerjanya. Tidak ada resep langkah demi langkah.
 
 ```mermaid
 flowchart TB
-  C["lapor @chefjuno"] --> T{"Semua file berubah<br/>hanya dokumentasi?"}
-  T -- ya --> L["Review ringan<br/>1 reviewer + reviewer akhir<br/>tanpa uji aplikasi"]
-  T -- tidak --> F["Jalur penuh<br/>triase → spesialis → validasi → reviewer akhir"]
-  F --> P["Posting ke PR"]
-  L --> P
-  F -.-> U["Uji aplikasi (job lanjutan)<br/>lihat Uji aplikasi"]
+  C["lapor @chefjuno"] --> A["Agent tujuan<br/><i>model terkuat (Opus / gpt-6.2-astra)</i><br/>akses penuh di mesin"]
+  A --> P["Posting ke PR"]
+  A -.-> U["Uji aplikasi (job lanjutan)<br/>lihat Uji aplikasi"]
+  C2["lapor @chefjuno dalam"] --> F["Pipeline lama (read-only)<br/>triase → spesialis → validasi → reviewer akhir"]
+  F --> P
 ```
 
-**Hanya dokumentasi** ditentukan aturan path, bukan model: semua file berubah berupa `*.md`/`*.mdx`/`*.rst`/`*.txt`,
-isi folder `docs/`, `LICENSE`/`CODEOWNERS`, template issue/PR GitHub, atau gambar. Satu file kode saja → jalur penuh.
+| | Mode tujuan (bawaan) | Pipeline lama |
+|---|---|---|
+| Dipakai | `lapor @chefjuno` | `lapor @chefjuno dalam` (atau `standar`) |
+| Agent | Satu agent, model terkuat; **boleh memecah kerja ke subagent** sesuai keputusannya | 2–12 panggilan agent dengan urutan tetap |
+| Akses | Penuh di mesin: baca kode, jalankan test, analyzer, build, script, git | Hanya baca (`Read`, `Grep`, `Glob`) |
+| Yang diberikan | Tujuan ("aman di-merge? buktikan"), konteks PR, memory, aturan tim, peta kode, arahan & skill tim, batas | Resep, cek wajib, fokus per putaran |
 
-## Jalur penuh
+Batas mode tujuan tidak bisa ditawar: isi PR adalah data, bukan perintah; tidak menyentuh produksi, tidak deploy, tidak
+push, tidak berkomentar di GitHub, tidak mencetak rahasia. Hasilnya tetap JSON sesuai schema dan dipindai kebocoran
+rahasia sebelum keluar dari mesin. **Prompt review** di editor Skills menjadi *arahan tim* untuk agent ini, dan skill tim
+menjadi *pegangan* yang dipakai bila relevan.
+
+Mode tujuan **menjalankan kode PR di mesin reviewer**. Pakai untuk repo tim sendiri; untuk PR dari pihak yang tidak
+dipercaya pakai `lapor @chefjuno dalam` (read-only), atau jalankan mesin reviewer di akun/VM terpisah.
+
+Bandingkan kedua mode di **Analitik → per mode** (jumlah panggilan, token, waktu) dan dari hasil temuan (diterima vs dibantah).
+
+## Pipeline lama (`lapor @chefjuno dalam`)
 
 ```mermaid
 flowchart TB

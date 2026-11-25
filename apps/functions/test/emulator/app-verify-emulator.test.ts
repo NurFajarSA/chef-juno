@@ -154,7 +154,7 @@ describe('uji aplikasi terhadap emulator lokal', () => {
     expect(plan.system).toContain('tersambung ke emulator lokal');
     // memory tim "Uji aplikasi:" masuk ke prompt penguji, tidak ke prompt reviewer kode
     expect(plan.prompt).toContain('## Memory tim untuk uji aplikasi\n- akun tes harus premium');
-    const lensRecs = recs.filter((r) => String(r.system).includes('Fokus putaran ini'));
+    const lensRecs = recs.filter((r) => String(r.system).includes('# Tujuan'));
     expect(lensRecs.length).toBeGreaterThan(0);
     expect(lensRecs.some((r) => `${r.system}\n${r.prompt}`.includes('akun tes harus premium'))).toBe(false);
     expect(plan.system).not.toContain('backend produksi');

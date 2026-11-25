@@ -61,6 +61,8 @@ describe('biaya & waktu', () => {
     const [std, deep] = byMode(jobs);
     expect(std).toMatchObject({ mode: 'standard', reviews: 1, avgTokens: 11_000, avgCalls: 1 });
     expect(deep).toMatchObject({ mode: 'deep', reviews: 1, avgTokens: 55_000, avgCalls: 3 });
+    // mode tujuan (satu agent) dihitung terpisah supaya bisa dibandingkan dengan pipeline lama
+    expect(byMode([job({ mode: 'goal', inputTokens: 30_000, outputTokens: 3_000 })])[2]).toMatchObject({ mode: 'goal', reviews: 1, avgTokens: 33_000, avgCalls: 1 });
   });
   it('review lama tanpa data token/putaran tidak ikut menurunkan rata-rata', () => {
     const old = job({ passes: [], inputTokens: null, outputTokens: null });

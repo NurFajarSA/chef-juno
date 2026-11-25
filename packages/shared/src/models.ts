@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { toStrictJsonSchema, type ReviewFinding } from './schemas.js';
+import { ReviewOutputSchema, toStrictJsonSchema, type ReviewFinding } from './schemas.js';
 import { SEVERITY_RANK } from './constants.js';
 
 // ---------- Model per peran (biaya minimal, hasil tetap bagus) ----------
@@ -277,6 +277,19 @@ export type LeadOutput = z.infer<typeof LeadOutputSchema>;
 export const TRIAGE_SCHEMA = toStrictJsonSchema(TriageOutputSchema);
 export const VALIDATE_SCHEMA = toStrictJsonSchema(ValidateOutputSchema);
 export const LEAD_SCHEMA = toStrictJsonSchema(LeadOutputSchema);
+
+/**
+ * Mode tujuan: satu agent (boleh memecah kerja ke subagent) menerima tujuan + konteks dan mengembalikan hasil akhir
+ * langsung — temuan, skor, dampak, walkthrough, diagram. Cara kerjanya diserahkan ke agent.
+ */
+export const GoalOutputSchema = ReviewOutputSchema.extend({
+  impact: z.enum(IMPACT_LEVELS),
+  diagram: z.string(),
+  walkthrough: z.array(z.object({ area: z.string(), files: z.array(z.string()), change: z.string() })),
+  effortMinutes: z.number().int().min(0),
+});
+export type GoalOutput = z.infer<typeof GoalOutputSchema>;
+export const GOAL_SCHEMA = toStrictJsonSchema(GoalOutputSchema);
 
 // ---------- Penggabungan temuan dari beberapa putaran ----------
 

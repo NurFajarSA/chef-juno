@@ -20,7 +20,7 @@ There is no telemetry and no server of this project. Model calls go from your ma
 
 ## Trust boundaries
 
-- **Pull request content is untrusted.** The reviewer agent runs read-only (Claude Code `--restricted --safe-mode` with `Read`, `Grep`, `Glob`; Codex `--sandbox read-only`), with user customizations off and output forced to a JSON schema. Results are scanned for secrets before they leave the machine.
+- **Pull request content is untrusted.** By default (goal mode) the reviewer agent runs with full access on the reviewer machine so it can run tests and builds and split work across subagents; the prompt forbids touching production, deploying, pushing or posting, and treats PR content as data. Secrets are stripped from its environment and results are scanned for secrets before they leave the machine. This means PR code runs on the reviewer machine: use goal mode for repositories of a trusted team. `lapor @chefjuno dalam` uses the read-only pipeline (Claude Code `--restricted --safe-mode` with `Read`, `Grep`, `Glob`; Codex `--sandbox read-only`), with user customizations off and output forced to a JSON schema.
 - **The app tester is trusted.** It has to run the app, so it can run commands. It only runs where the machine owner installed a test profile, only against a local emulator, and it never pushes or posts. Run it on a machine where that is acceptable.
 - **A read-only sandbox can still read the machine.** Use a dedicated account for reviewer machines that hold sensitive data.
 

@@ -27,6 +27,8 @@ import { buildReviewPrompt, truncateDiff } from './context.js';
 import { extraReviewContext } from './extras.js';
 import { SHALLOW_MAX_TURNS, SHALLOW_NUDGE, deepReview, failed, type PassMeta } from './deep-review.js';
 import { runFinalReview, type FinalOutput } from './final-review.js';
+import { runGoalReview } from './goal-review.js';
+import { PIPELINE_RULES } from './pipeline-rules.js';
 import { runVerification, verificationSection } from './verify.js';
 import { assertNoLeak } from './leak.js';
 
@@ -167,7 +169,8 @@ export async function runReviewJob(ctx: JobContext) {
     );
     const skillsSection = skillSel.text;
     progress(ctx).end(prepStep, true);
-    const systemPrompt = `${persona}\n\n---\n\n${review}${skillsSection ? `\n\n---\n\n${skillsSection}` : ''}`;
+    // pipeline lama: aturan kerjanya sendiri + arahan tim (prompt review) + skill
+    const systemPrompt = [persona, PIPELINE_RULES, review, skillsSection].filter((x) => x.trim()).join('\n\n---\n\n');
     // jumlah baris +/− per file (bahan walkthrough & tingkat dampak untuk reviewer akhir)
     const numstat = new Map<string, string>();
     for (const l of (await git(repoDir, ['diff', '--numstat', `${pr.baseSha}...${pr.headSha}`])).split('\n')) {
@@ -182,17 +185,21 @@ export async function runReviewJob(ctx: JobContext) {
       files: files.map((f) => ({ path: f, stat: numstat.get(f) ?? null })),
     });
 
-    // Satu standar: semua PR direview penuh (putaran spesialis + validasi + reviewer akhir) dan diuji di aplikasi;
-    // hanya perubahan remeh (dokumentasi saja, aturan path) yang direview ringan tanpa uji aplikasi.
+    // Mode tujuan (bawaan): satu agent dengan tujuan + konteks + batas, cara kerjanya dia yang memutuskan.
+    // Pipeline lama (putaran spesialis / reviewer tunggal) hanya bila diminta lewat Pengaturan atau perintah.
     const trivial = isTrivialChange(files);
-    const mode: 'standard' | 'deep' = trivial ? 'standard' : 'deep';
+    // `lapor @chefjuno dalam|standar` → field reviewMode di job (dari webhook); selain itu mode tujuan
+    const fromCommand = (job as { reviewMode?: unknown }).reviewMode;
+    const requested: ReviewMode = fromCommand === 'deep' || fromCommand === 'standard' ? fromCommand : 'auto';
+    const mode: 'goal' | 'standard' | 'deep' = requested === 'auto' ? 'goal' : requested;
     const decision = {
-      requested: 'auto' as ReviewMode,
+      requested,
       chosen: mode,
-      by: 'aturan',
-      reason: trivial
-        ? 'hanya dokumentasi: review ringan tanpa uji aplikasi'
-        : 'satu standar: review penuh + uji aplikasi',
+      by: requested === 'auto' ? 'aturan' : 'perintah',
+      reason:
+        mode === 'goal'
+          ? 'agent memutuskan sendiri cara memeriksa (boleh menjalankan kode & memakai subagent)'
+          : `pipeline ${mode === 'deep' ? 'mendalam' : 'standar'} diminta`,
     };
 
     let output: FinalOutput;
@@ -206,7 +213,27 @@ export async function runReviewJob(ctx: JobContext) {
       numTurns: number | null;
       isolation: string;
     };
-    if (mode === 'deep') {
+    if (mode === 'goal') {
+      const g = await runGoalReview(ctx, {
+        cwd: wt,
+        jobDir,
+        persona,
+        guidance: review,
+        // brief terstruktur (alur yang diubah, cara mencoba) dari deskripsi PR bertemplate
+        userPrompt: `${prBrief}\n\n---\n\n${userPrompt}`,
+        skills: skillsSection,
+      });
+      output = g.output;
+      raw = g.raw;
+      passes = [g.meta];
+      agentMeta = {
+        model: g.meta.model,
+        inputTokens: g.meta.inputTokens,
+        outputTokens: g.meta.outputTokens,
+        numTurns: g.meta.numTurns ?? null,
+        isolation: g.meta.isolation,
+      };
+    } else if (mode === 'deep') {
       const d = await deepReview(ctx, {
         cwd: wt,
         jobDir,

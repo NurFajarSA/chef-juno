@@ -39,7 +39,7 @@ export interface JobRow {
   prState: 'open' | 'closed' | 'merged';
   /** severity terparah di hasil review (null = tidak ada temuan) */
   maxSeverity: 'P0' | 'P1' | 'P2' | null;
-  mode: 'standard' | 'deep' | null;
+  mode: 'goal' | 'standard' | 'deep' | null;
   /** semua pemanggilan agent di job ini (job lama tanpa rincian → satu putaran dari meta) */
   passes: PassRow[];
   inputTokens: number | null;
@@ -115,7 +115,7 @@ export function jobRow(id: string, d: DocumentData): JobRow {
     maxSeverity: Array.isArray(r.findings) && r.findings.length
       ? ([...r.findings].map((f: { severity: 'P0' | 'P1' | 'P2' }) => f.severity).sort()[0] ?? null)
       : null,
-    mode: r.meta?.mode === 'deep' ? 'deep' : r.meta ? 'standard' : null,
+    mode: r.meta?.mode === 'deep' || r.meta?.mode === 'goal' ? r.meta.mode : r.meta ? 'standard' : null,
     passes: passesOf(d),
     skillsLoaded: Array.isArray(r.meta?.skillsLoaded) ? r.meta.skillsLoaded : [],
     skillsSkipped: Array.isArray(r.meta?.skillsSkipped) ? r.meta.skillsSkipped : [],
