@@ -440,12 +440,14 @@ export async function cleanupOrphanAppRuns(log: (m: string) => void): Promise<nu
   let n = 0;
   for (const d of readdirSync(base)) {
     const wt = join(base, d, 'worktree');
-    if (!existsSync(wt)) continue;
     // hanya perintah yang ada di worktree ini (path relatif) atau path absolut
-    const mine = steps.filter((s) => s.command[0].startsWith('/') || existsSync(join(wt, s.command[0])));
-    if (!mine.length) continue;
-    const err = await runSteps(mine, wt);
+    const mine = existsSync(wt)
+      ? steps.filter((s) => s.command[0].startsWith('/') || existsSync(join(wt, s.command[0])))
+      : [];
+    const err = mine.length ? await runSteps(mine, wt) : null;
+    // proses dari folder job mana pun (juga salinan lain yang dibuat agent, mis. <job>/isolated) dihentikan
     const swept = await stopJobProcesses(join(base, d));
+    if (!mine.length && !swept) continue;
     n++;
     log(
       err && !swept

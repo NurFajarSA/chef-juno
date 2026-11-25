@@ -345,6 +345,35 @@ describe('pembersihan app penguji', () => {
     expect(logs).toEqual(['🧹 sisa uji aplikasi jobC-z dibersihkan (1 proses dihentikan)']);
   });
 
+  it('proses dari folder job tanpa worktree (mis. salinan <job>/isolated buatan agent) juga dihentikan', async () => {
+    const home = dir();
+    const iso = join(home, 'jobs', 'jobD-w', 'isolated', 'scripts');
+    mkdirSync(iso, { recursive: true });
+    const server = join(iso, 'server.sh');
+    writeFileSync(server, '#!/bin/sh\nsleep 300\n');
+    chmodSync(server, 0o755);
+    const child = spawn(server, [], { detached: true, stdio: 'ignore' });
+    let exited = false;
+    const exit = new Promise<void>((r) => child.on('exit', () => ((exited = true), r())));
+    writeFileSync(
+      join(home, 'app-local.json'),
+      JSON.stringify({ 'tim/app': { agentTest: { cleanup: [{ command: ['scripts/app.sh', 'stop', 'web'] }] } } }),
+    );
+    const prev = process.env.CHEFJUNO_HOME;
+    process.env.CHEFJUNO_HOME = home;
+    const logs: string[] = [];
+    try {
+      expect(await cleanupOrphanAppRuns((m) => logs.push(m))).toBe(1);
+    } finally {
+      if (prev === undefined) delete process.env.CHEFJUNO_HOME;
+      else process.env.CHEFJUNO_HOME = prev;
+      if (!exited) child.kill('SIGKILL');
+    }
+    await Promise.race([exit, new Promise((r) => setTimeout(r, 2000))]);
+    expect(exited).toBe(true);
+    expect(logs).toEqual(['🧹 sisa uji aplikasi jobD-w dibersihkan (1 proses dihentikan)']);
+  });
+
   it('proses di luar folder job dan proses daemon sendiri tidak disentuh', async () => {
     const other = dir();
     const child = spawn('sleep', ['300'], { detached: true, stdio: 'ignore', cwd: other });
