@@ -410,6 +410,10 @@ async function runAgentAppTest(
       const err = await runSteps(at.cleanup, o.headWorktree);
       if (err) ctx.daemon.log(`⚠ pembersihan uji aplikasi gagal: ${err}`);
     }
+    // apa pun yang masih hidup dari folder job (mis. app yang diluncurkan penguji dengan nama pemegang lain sehingga
+    // perintah cleanup profil menolaknya) dihentikan, supaya tidak memegang port/emulator untuk uji berikutnya
+    const swept = await stopJobProcesses(o.jobDir);
+    if (swept) ctx.daemon.log(`🧹 ${swept} proses sisa uji aplikasi dihentikan`);
     if (lock) await lock.release();
   }
 }
@@ -441,10 +445,60 @@ export async function cleanupOrphanAppRuns(log: (m: string) => void): Promise<nu
     const mine = steps.filter((s) => s.command[0].startsWith('/') || existsSync(join(wt, s.command[0])));
     if (!mine.length) continue;
     const err = await runSteps(mine, wt);
+    const swept = await stopJobProcesses(join(base, d));
     n++;
-    log(err ? `⚠ pembersihan sisa uji ${d} gagal: ${err}` : `🧹 sisa uji aplikasi ${d} dibersihkan`);
+    log(
+      err && !swept
+        ? `⚠ pembersihan sisa uji ${d} gagal: ${err}`
+        : `🧹 sisa uji aplikasi ${d} dibersihkan${swept ? ` (${swept} proses dihentikan)` : ''}`,
+    );
   }
   return n;
+}
+
+/**
+ * Hentikan semua proses yang dijalankan dari folder job (perintahnya memuat path folder itu), beserta process
+ * group-nya: app yang diluncurkan penguji bisa lepas dari agent (induknya jadi PID 1) dan terus memegang port.
+ * Proses daemon sendiri tidak pernah disentuh. Mengembalikan jumlah process group yang dihentikan.
+ */
+export async function stopJobProcesses(dir: string, waitMs = 3000): Promise<number> {
+  const prefix = dir.replace(/\/+$/, '') + '/';
+  const r = await runProc('ps', ['-axo', 'pid=,pgid=,command='], { timeoutMs: 10_000 }).catch(() => null);
+  if (!r || r.code !== 0) return 0;
+  const ownGroup = (() => {
+    const me = r.stdout.split('\n').find((l) => Number(l.trim().split(/\s+/)[0]) === process.pid);
+    return me ? Number(me.trim().split(/\s+/)[1]) : -1;
+  })();
+  const groups = new Set<number>();
+  for (const line of r.stdout.split('\n')) {
+    const m = /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line);
+    if (!m) continue;
+    const [pid, pgid, cmd] = [Number(m[1]), Number(m[2]), m[3]];
+    if (pid === process.pid || pgid === ownGroup || pgid <= 1 || !cmd.includes(prefix)) continue;
+    groups.add(pgid);
+  }
+  const signal = (sig: NodeJS.Signals) => {
+    for (const g of groups)
+      try {
+        process.kill(-g, sig);
+      } catch {
+        /* sudah berhenti */
+      }
+  };
+  if (!groups.size) return 0;
+  signal('SIGTERM');
+  const alive = () =>
+    [...groups].some((g) => {
+      try {
+        process.kill(-g, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+  for (let t = 0; t < waitMs && alive(); t += 200) await new Promise((res) => setTimeout(res, 200));
+  if (alive()) signal('SIGKILL');
+  return groups.size;
 }
 
 /** Screenshot apa pun → JPEG ≤ 1280 px (sips di macOS); JPEG kecil dipakai apa adanya. */

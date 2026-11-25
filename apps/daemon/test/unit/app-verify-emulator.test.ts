@@ -14,8 +14,11 @@ import {
   planPrompt,
   prepareEmulator,
   runnerArgs,
+  stopJobProcesses,
   tsvAccount,
 } from '../../src/jobs/app-verify.js';
+import { spawn } from 'node:child_process';
+import { AppAgentOutputSchema } from '@chefjuno/shared';
 
 const dir = () => mkdtempSync(join(tmpdir(), 'cj-emu-unit-'));
 
@@ -305,6 +308,63 @@ describe('pembersihan app penguji', () => {
     }
     expect(existsSync(join(wt, 'berhenti-web'))).toBe(true);
     expect(logs).toEqual(['🧹 sisa uji aplikasi jobA-x dibersihkan']);
+  });
+
+  it('app yang lepas dari agent & ditolak cleanup profil (pemegang lain) tetap dihentikan lewat folder job', async () => {
+    const home = dir();
+    const wt = join(home, 'jobs', 'jobC-z', 'worktree');
+    mkdirSync(join(wt, 'scripts'), { recursive: true });
+    // cleanup profil menolak, seperti app.sh yang dijalankan dengan pemegang berbeda
+    const stop = join(wt, 'scripts', 'app.sh');
+    writeFileSync(stop, '#!/bin/sh\necho "web was started by chefjuno-pr1, not chefjuno; leave it" >&2\nexit 1\n');
+    chmodSync(stop, 0o755);
+    const server = join(wt, 'scripts', 'server.sh');
+    writeFileSync(server, '#!/bin/sh\nsleep 300\n');
+    chmodSync(server, 0o755);
+    // proses ter-detach (process group sendiri), seperti app yang diluncurkan penguji lalu ditinggal
+    const child = spawn(server, [], { detached: true, stdio: 'ignore' });
+    let exited = false;
+    const exit = new Promise<void>((r) => child.on('exit', () => ((exited = true), r())));
+    // proses anak test jadi zombie sampai di-reap; status "keluar" diambil dari event exit
+    writeFileSync(
+      join(home, 'app-local.json'),
+      JSON.stringify({ 'tim/app': { agentTest: { cleanup: [{ command: ['scripts/app.sh', 'stop', 'web'] }] } } }),
+    );
+    const prev = process.env.CHEFJUNO_HOME;
+    process.env.CHEFJUNO_HOME = home;
+    const logs: string[] = [];
+    try {
+      expect(await cleanupOrphanAppRuns((m) => logs.push(m))).toBe(1);
+    } finally {
+      if (prev === undefined) delete process.env.CHEFJUNO_HOME;
+      else process.env.CHEFJUNO_HOME = prev;
+      if (!exited) child.kill('SIGKILL');
+    }
+    await Promise.race([exit, new Promise((r) => setTimeout(r, 2000))]);
+    expect(exited).toBe(true);
+    expect(logs).toEqual(['🧹 sisa uji aplikasi jobC-z dibersihkan (1 proses dihentikan)']);
+  });
+
+  it('proses di luar folder job dan proses daemon sendiri tidak disentuh', async () => {
+    const other = dir();
+    const child = spawn('sleep', ['300'], { detached: true, stdio: 'ignore', cwd: other });
+    child.unref();
+    try {
+      expect(await stopJobProcesses(join(dir(), 'jobs', 'tidak-ada'))).toBe(0);
+      expect(() => process.kill(child.pid!, 0)).not.toThrow();
+    } finally {
+      process.kill(-child.pid!, 'SIGKILL');
+    }
+  });
+
+  it('laporan penguji: nomor item di luar daftar (mis. 0) tidak menggugurkan laporan', () => {
+    const r = AppAgentOutputSchema.safeParse({
+      change: { status: 'not_reproduced', note: 'alur jalan', shots: ['a.png'] },
+      findings: [{ item: 0, status: 'inconclusive', note: '', shots: [] }],
+      skipped: [{ item: 0, reason: 'alur yang diubah PR sudah dicoba di change' }],
+      lessons: [],
+    });
+    expect(r.success).toBe(true);
   });
 
   it('profil: cleanup opsional (default kosong)', () => {

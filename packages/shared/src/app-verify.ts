@@ -255,10 +255,11 @@ const status = z.enum(['reproduced', 'not_reproduced', 'inconclusive']);
 export const AppAgentOutputSchema = z.object({
   change: z.object({ status, note: clipStr(1500), shots: clipArr(clipStr(200), 8) }),
   findings: clipArr(
-    z.object({ item: z.number().int().min(1), status, note: clipStr(1500), shots: clipArr(clipStr(200), 6) }),
+    z.object({ item: z.number().int(), status, note: clipStr(1500), shots: clipArr(clipStr(200), 6) }),
     10,
   ),
-  skipped: clipArr(z.object({ item: z.number().int().min(1), reason: clipStr(500) }), 10),
+  // nomor item di luar daftar (mis. 0 untuk "alur yang diubah PR") diabaikan saat dipetakan, bukan menggugurkan laporan
+  skipped: clipArr(z.object({ item: z.number().int(), reason: clipStr(500) }), 10),
   /** fakta penting tentang cara menguji app ini yang perlu diingat Chef Juno (mis. akun harus premium) */
   lessons: clipArr(clipStr(400), 6),
 });
