@@ -25,6 +25,8 @@ export class GithubMock {
     this.statuses = []; // { repo, sha, state, context, description, target_url }
     /** simulasi GitHub App tanpa izin Commit statuses */
     this.denyStatuses = false;
+    /** simulasi GitHub gangguan: tulis ke repo dibalas 502 — true = semua, RegExp = path yang cocok saja */
+    this.outage = false;
   }
 
   id() {
@@ -92,6 +94,12 @@ export class GithubMock {
         }
         const url = new URL(req.url, 'http://x');
         this.requests.push({ method: req.method, path: url.pathname, query: Object.fromEntries(url.searchParams), body, headers: req.headers, at: Date.now() });
+        const down = this.outage instanceof RegExp ? this.outage.test(url.pathname) : this.outage;
+        if (down && req.method !== 'GET' && url.pathname.startsWith('/repos/')) {
+          res.writeHead(502, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ message: 'Server Error' }));
+          return;
+        }
         try {
           const out = this.route(req.method, url.pathname, body, req.headers, url.searchParams);
           if (out.raw !== undefined) {

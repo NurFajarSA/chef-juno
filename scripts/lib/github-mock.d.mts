@@ -20,6 +20,7 @@ export declare class GithubMock {
   failNextReview: boolean;
   statuses: { id: number; repo: string; sha: string; state: string; context: string; description: string; target_url: string | null }[];
   denyStatuses: boolean;
+  outage: boolean | RegExp;
   reset(): void;
   addRepo(r: { fullName: string; id: number; bare: string; defaultBranch?: string; installationId?: number }): void;
   addPr(fullName: string, pr: MockPr): void;
