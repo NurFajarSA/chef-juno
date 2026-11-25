@@ -103,7 +103,7 @@ Profil ini milik **mesin**, bukan repo — PR tidak bisa mengubah cara dirinya d
 | `agentTest.instructions` | Instruksi tim untuk penguji: cara launch, akun, hal yang tidak boleh diklik (maks 6.000 karakter) |
 | `agentTest.readFirst` | Berkas yang wajib dibaca dulu (path absolut, maks 10). Skill verify repo dibaca otomatis |
 | `agentTest.timeoutMin` | Batas waktu penguji, 5–90 menit, default 40 |
-| `agentTest.cleanup` | Maks 5 perintah yang **mematikan app** yang dijalankan penguji. Dijalankan di worktree PR setelah setiap uji (berhasil, gagal, timeout), dan saat mesin menyala untuk sisa job yang terputus — app yatim tidak boleh memegang akun emulator |
+| `agentTest.cleanup` | Maks 5 perintah yang **mematikan app** yang dijalankan penguji. Dijalankan di worktree PR setelah setiap uji (berhasil, gagal, timeout), dan saat mesin menyala untuk sisa job yang terputus — app yatim tidak boleh memegang akun emulator. Setelah itu daemon juga menghentikan setiap proses yang masih hidup dari folder job (mis. app yang diluncurkan penguji dengan nama pemegang lain sehingga cleanup menolaknya) |
 | `emulator.locks` | Kunci akun/lajur uji bersama (penahan = proses yang hidup selama uji, `{{pid}}`). Dilepas terbalik setelah cleanup |
 | `emulator.requirePorts`, `prepare`, `repair`, `start` | Opsional: persiapan yang dijalankan daemon sebelum agent. Biasanya kosong — penguji yang menyalakan, memperbaiki, dan mengisi emulator sesuai skill verify (lebih tahan terhadap kondisi tak terduga) |
 
