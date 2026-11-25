@@ -46,6 +46,10 @@ dari PR yang ditutup), `recap` (narasi rapor).
 mengerjakannya langsung menghentikan agent (app sisa uji tetap dibereskan) dan status commit **Chef Juno** diberi tahu.
 Minta review untuk commit baru di PR yang sama → review & uji commit lama yang belum selesai otomatis dibatalkan.
 
+**Posting ulang.** Review yang selesai tapi gagal diposting (status gagal, tahap `post`, mis. GitHub sedang gangguan)
+menampilkan tombol **Posting ulang ke GitHub** untuk admin atau peminta review. Hasil yang sudah tersimpan diposting
+lagi tanpa menjalankan agent. Tombol ditolak bila sudah ada review yang lebih baru untuk PR yang sama.
+
 ## Status merge di dashboard
 
 | Label | Kapan |

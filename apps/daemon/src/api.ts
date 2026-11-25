@@ -14,7 +14,16 @@ async function post<T>(url: string, body: unknown, headers: Record<string, strin
   } catch {
     throw new Error(`Server membalas ${res.status}: ${text.slice(0, 200)}`);
   }
-  if (!res.ok) throw new Error((json as { error?: string }).error ?? `Server membalas ${res.status}`);
+  if (!res.ok) {
+    // callable membalas { error: { message, status } }; endpoint lain { error: "<pesan>" }
+    const err = (json as { error?: unknown }).error;
+    const msg = typeof err === 'string' ? err : (err as { message?: unknown } | undefined)?.message;
+    const detail = typeof msg === 'string' && msg ? msg : '';
+    // 5xx: sebut kodenya supaya jelas ini gangguan server (mis. GitHub/Functions), bukan kesalahan job
+    throw new Error(
+      res.status >= 500 || !detail ? `Server membalas ${res.status}${detail ? ` (${detail})` : ''}` : detail,
+    );
+  }
   return json as T;
 }
 
@@ -40,6 +49,6 @@ export async function callFunction<T>(server: string, name: string, data: unknow
     { data },
     { authorization: `Bearer ${idToken}` },
   );
-  if (r.error) throw new Error(r.error.message);
+  if (r.error) throw new Error(typeof r.error.message === 'string' ? r.error.message : 'Panggilan server gagal');
   return r.result as T;
 }

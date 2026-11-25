@@ -13,3 +13,4 @@ export { importSkills, saveSkillVersion, setSkillEnabled, deleteSkill } from './
 export { backfillPrs } from './prs.js';
 export { evidenceImage } from './evidence.js';
 export { cancelJob } from './cancel.js';
+export { repostReview } from './repost.js';
