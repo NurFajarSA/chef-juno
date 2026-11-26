@@ -52,6 +52,27 @@ afterAll(async () => {
 });
 
 describe('uji aplikasi', () => {
+  it(
+    'repo tanpa .chefjuno/app.json & tanpa profil mesin → uji tidak berlaku: gate = review kode, tanpa komentar 🧪',
+    { timeout: 180_000 },
+    async () => {
+      await h.db.doc('settings/global').update({ appVerifyEnabled: true });
+      await h.comment('lapor @chefjuno');
+      const app = await h.waitJob((j) => j.type === 'app-verify' && j.status === 'posted', 120_000);
+      const parent = (await h.db.doc(`jobs/${app.data.parentJobId}`).get()).data()!;
+      expect(parent.result.meta.appVerification).toMatchObject({ ran: false, notApplicable: true });
+      // bukan "belum teruji" (error): status commit mengikuti verdict review kode
+      expect(parent.result.appGate.state).not.toBe('error');
+      expect(parent.result.appGate.verdict).toBe(parent.result.gate.verdict);
+      expect(parent.result.appGate.description).toContain('tanpa uji aplikasi');
+      const st = h.mock.statuses.at(-1)!;
+      expect(st.state).toBe(parent.result.appGate.state);
+      expect(st.description).not.toContain('Belum teruji');
+      // tidak ada yang perlu dilaporkan → tidak ada komentar uji aplikasi (tidak menambah notifikasi)
+      expect(h.mock.issueComments.some((c) => c.body.includes('<!-- chefjuno-ai:app -->'))).toBe(false);
+    },
+  );
+
   it('temuan P1 dicoba di browser: terbukti, screenshot tersimpan, komentar PR menautkan bukti; kredensial tidak bocor', async () => {
     // konfigurasi dari branch tujuan; kode aplikasi (yang dibangun) dari PR
     const base = h.repo.commit({ '.chefjuno/app.json': JSON.stringify(APP_CONFIG) }, 'chore: konfigurasi uji aplikasi');
@@ -64,7 +85,10 @@ describe('uji aplikasi', () => {
 
     await h.comment('lapor @chefjuno');
     // satu standar: review diposting dulu (uji menyusul), lalu job uji aplikasi lanjutan
-    const review = await h.waitJob((j) => j.type === 'review' && j.status === 'posted', 120_000);
+    const review = await h.waitJob(
+      (j) => j.type === 'review' && j.status === 'posted' && j.pr?.headSha === head,
+      120_000,
+    );
     expect(review.data.config.appVerifyEnabled).toBe(true);
     expect(review.data.result.meta.appVerification).toMatchObject({ ran: false, pending: true });
     const app = await h.waitJob(

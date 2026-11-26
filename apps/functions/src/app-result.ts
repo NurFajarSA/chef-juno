@@ -122,23 +122,25 @@ export async function applyAppVerifyResult(ref: DocumentReference, job: Job, gh?
       link: link(f),
       images: imgs(f.evidence!.shots),
     }));
-  await upsertAppComment(
-    octo,
-    String(job.repo.fullName),
-    prNumber,
-    formatAppComment({
-      headSha: String(job.pr.headSha),
-      ran: !!av.ran,
-      reason: av.reason,
-      backend: av.backend,
-      buildMs: av.buildMs,
-      runMs: av.runMs,
-      change: av.change ? { ...av.change, images: imgs(av.change.shots) } : null,
-      changeLink: av.change?.shots?.[0] ? evidenceLink(parentRef.id, { evidence: av.change }) : null,
-      tried,
-      skipped: (av.skipped ?? []) as { title: string; reason: string }[],
-    }),
-  );
+  // repo tanpa uji aplikasi: tidak ada yang perlu dilaporkan → tanpa komentar 🧪 (tidak menambah notifikasi)
+  if (!av.notApplicable)
+    await upsertAppComment(
+      octo,
+      String(job.repo.fullName),
+      prNumber,
+      formatAppComment({
+        headSha: String(job.pr.headSha),
+        ran: !!av.ran,
+        reason: av.reason,
+        backend: av.backend,
+        buildMs: av.buildMs,
+        runMs: av.runMs,
+        change: av.change ? { ...av.change, images: imgs(av.change.shots) } : null,
+        changeLink: av.change?.shots?.[0] ? evidenceLink(parentRef.id, { evidence: av.change }) : null,
+        tried,
+        skipped: (av.skipped ?? []) as { title: string; reason: string }[],
+      }),
+    );
 
   // alur rusak / temuan baru dari uji → ringkasan ikut: skor dibatasi + alasannya di bawah verdict (bukan hanya status)
   const broken = av.ran && av.change?.status === 'reproduced';

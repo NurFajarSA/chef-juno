@@ -70,8 +70,20 @@ export async function setCommitStatus(
  */
 export function appGate(
   code: { verdict: GateVerdict; description: string },
-  app: { ran: boolean; reason?: string; change?: { status: string; shots?: string[] } | null },
+  app: {
+    ran: boolean;
+    reason?: string;
+    notApplicable?: boolean;
+    change?: { status: string; shots?: string[] } | null;
+  },
 ): { verdict: GateVerdict | 'UNTESTED'; state: StatusState; description: string } {
+  // repo tanpa uji aplikasi (tidak dikonfigurasi) → gate = hasil review kode
+  if (!app.ran && app.notApplicable)
+    return {
+      verdict: code.verdict,
+      state: code.verdict === 'FAIL' ? 'failure' : 'success',
+      description: `${code.description} · tanpa uji aplikasi`,
+    };
   if (!app.ran)
     return { verdict: 'UNTESTED', state: 'error', description: `Belum teruji di aplikasi: ${app.reason ?? '-'}` };
   const ch = app.change?.status;

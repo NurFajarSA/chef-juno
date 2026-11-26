@@ -58,6 +58,9 @@ import { progress } from './progress.js';
 export interface AppVerificationMeta {
   ran: boolean;
   reason?: string;
+  /** repo ini tidak dikonfigurasi untuk uji aplikasi (tanpa profil mesin & tanpa .chefjuno/app.json): bukan
+   *  "belum teruji" — gate mengikuti review kode saja */
+  notApplicable?: boolean;
   runtime?: string;
   /** 'emulator' = uji terhadap emulator lokal, bukan backend produksi */
   backend?: 'emulator';
@@ -907,9 +910,11 @@ const describeStep = (s: AppStep) =>
     .filter((x) => x !== null && x !== undefined && x !== '')
     .join(' ');
 
+const NO_APP_CONFIG = `${APP_CONFIG_PATH} tidak ada di branch tujuan`;
+
 async function loadConfig(repoDir: string, baseSha: string): Promise<AppConfig | string> {
   const raw = await showFile(repoDir, baseSha, APP_CONFIG_PATH);
-  if (!raw) return `${APP_CONFIG_PATH} tidak ada di branch tujuan`;
+  if (!raw) return NO_APP_CONFIG;
   try {
     const p = AppConfigSchema.safeParse(JSON.parse(raw));
     if (!p.success)
@@ -948,6 +953,13 @@ export async function runAppVerification(
   // uji oleh agent lewat skill verify tim (seperti lane functional reviewer-agent)
   if (profile?.agentTest) return runAgentAppTest(ctx, o, profile, skip);
   const conf = profile?.config ?? (await loadConfig(o.repoDir, o.baseSha));
+  // repo tanpa konfigurasi uji aplikasi sama sekali (mis. backend) → tidak berlaku, bukan kegagalan
+  if (conf === NO_APP_CONFIG && !profile)
+    return {
+      meta: { ran: false, reason: 'repo tidak dikonfigurasi untuk uji aplikasi', notApplicable: true },
+      findings: o.findings,
+      passes: [],
+    };
   if (typeof conf === 'string') return skip(conf);
   const emu = profile?.emulator;
   // satu standar: alur yang diubah PR SELALU dicoba (item terakhir), ditambah temuan yang bisa terlihat di aplikasi
