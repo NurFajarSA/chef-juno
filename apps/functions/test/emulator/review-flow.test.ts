@@ -169,6 +169,14 @@ describe('alur review end-to-end (emulator + GitHub palsu + fake agent)', () => 
     );
     expect(h.mock.summaryComments('tim/sample-repo', 1)).toHaveLength(1);
     expect(h.mock.calls('PATCH', /\/issues\/comments\/\d+$/).length).toBe(1);
+    // ringkasan hanya di-edit (tanpa notifikasi) → peminta dibalas komentar baru yang menautkan ringkasan
+    const summary = h.mock.summaryComments('tim/sample-repo', 1)[0];
+    const replies = h.mock.issueComments.filter((c) => c.body.includes('hasil review sudah diperbarui (edit)'));
+    expect(replies).toHaveLength(1);
+    expect(replies[0].body).toContain(`[komentar ringkasan](${summary.html_url})`);
+    expect(replies[0].body).toMatch(/^@\S+ Menjawab \[permintaan review ulang\]\(\S+#issuecomment-\d+\)/);
+    expect(replies[0].body).toContain('**Inti perubahan**');
+    expect(replies[0].body).toMatch(/- Skor (tetap \d\/5|: \d\/5 → \d\/5)/);
     // komentar inline lama tanpa balasan/reaksi dihapus; yang diberi reaksi tetap
     const latest = h.mock.reviews.at(-1)!;
     const remainingOld = h.mock.reviewComments.filter((c) => c.reviewId !== latest.id);

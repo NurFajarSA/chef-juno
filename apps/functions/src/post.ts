@@ -8,6 +8,7 @@ import {
   containsSecret,
   effectiveScore,
   formatInlineComment,
+  formatRereviewReply,
   formatSummaryComment,
   isSuppressed,
   mapToDiff,
@@ -31,7 +32,7 @@ export async function previousFindingsStatus(
   repoId: number,
   prNumber: number,
   current: { path: string; line: number; title: string }[],
-): Promise<{ fixed: string[]; open: string[] } | null> {
+): Promise<{ fixed: string[]; open: string[]; added: string[]; previousJobId: string } | null> {
   const snap = await db().collection('findings').where('repoId', '==', repoId).where('prNumber', '==', prNumber).get();
   const prev = snap.docs.map((d) => d.data()).filter((f) => f.jobId !== jobId && !f.held);
   if (!prev.length) return null;
@@ -42,15 +43,15 @@ export async function previousFindingsStatus(
   const norm = (t: string) => String(t).toLowerCase().replace(/\W+/g, ' ').trim();
   const fixed: string[] = [];
   const open: string[] = [];
-  for (const f of prev.filter((x) => x.jobId === lastJob)) {
-    const still =
-      f.outcome !== 'addressed' &&
-      current.some(
-        (c) => c.path === f.path && (Math.abs(c.line - Number(f.line)) <= 10 || norm(c.title) === norm(f.title)),
-      );
+  const near = (c: { path: string; line: number; title: string }, f: Record<string, unknown>) =>
+    c.path === f.path && (Math.abs(c.line - Number(f.line)) <= 10 || norm(c.title) === norm(String(f.title)));
+  const last = prev.filter((x) => x.jobId === lastJob);
+  for (const f of last) {
+    const still = f.outcome !== 'addressed' && current.some((c) => near(c, f));
     (still ? open : fixed).push(String(f.title));
   }
-  return { fixed, open };
+  const added = current.filter((c) => !last.some((f) => near(c, f))).map((c) => c.title);
+  return { fixed, open, added, previousJobId: String(lastJob) };
 }
 
 /** Tautan ke screenshot bukti di dashboard (perlu login); null bila DASHBOARD_URL belum diisi. */
@@ -231,7 +232,13 @@ export async function postReview(ref: DocumentReference, job: Job, gh?: GH) {
       issue_number: prNumber,
       per_page: 100,
     })
-  ).data as { id: number; body?: string; user?: { type?: string }; performed_via_github_app?: unknown }[];
+  ).data as {
+    id: number;
+    body?: string;
+    html_url?: string;
+    user?: { type?: string };
+    performed_via_github_app?: unknown;
+  }[];
   const sticky = existing.find(
     (c) => (c.body ?? '').includes(SUMMARY_MARKER) && (c.performed_via_github_app || c.user?.type === 'Bot'),
   );
@@ -244,6 +251,27 @@ export async function postReview(ref: DocumentReference, job: Job, gh?: GH) {
       body,
     });
     summaryCommentId = sticky.id;
+    // edit tidak memicu notifikasi GitHub → komentar peminta review ulang dibalas: sudah diperbarui + inti perubahannya
+    if (job.trigger?.commentId) {
+      const prevScore = previous ? (await db().doc(`jobs/${previous.previousJobId}`).get()).get('result.score') : null;
+      await octo.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+        owner,
+        repo,
+        issue_number: prNumber,
+        body: formatRereviewReply({
+          login: job.trigger.userLogin ?? null,
+          requestUrl: job.trigger.commentUrl ?? null,
+          headSha: job.pr.headSha,
+          verdict: out.verdict,
+          score: out.score,
+          incomplete: !!incompleteReason,
+          previousScore: typeof prevScore === 'number' ? prevScore : null,
+          previous,
+          added: previous ? previous.added : [...inline.map((x) => x.f), ...other].map((f) => f.title),
+          summaryUrl: sticky.html_url ?? null,
+        }),
+      });
+    }
   } else {
     const c = await octo.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
       owner,

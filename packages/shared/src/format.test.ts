@@ -11,6 +11,7 @@ import {
   containsSecret,
   formatDuration,
   formatInlineComment,
+  formatRereviewReply,
   formatSummaryComment,
   sanitize,
   sortFindings,
@@ -567,5 +568,54 @@ describe('gambar bukti inline', () => {
       '🧪 **Terbukti saat dicoba di aplikasi** — total Rp NaN · [detail di dashboard](https://chefjuno-ai.web.app/reviews/job0#bukti-f0-0)',
     );
     expect(body).toContain(`<img src="${good}"`);
+  });
+});
+
+describe('formatRereviewReply', () => {
+  const base = {
+    login: 'xirf',
+    requestUrl: 'https://github.example/o/r/pull/1#issuecomment-5',
+    headSha: '0752c3dabcdef',
+    verdict: 'Aman di-merge.',
+    score: 4,
+    incomplete: false,
+    summaryUrl: 'https://github.example/o/r/pull/1#issuecomment-9',
+  };
+  it('membalas peminta: sudah diedit + inti perubahan (skor, beres, masih ada, baru)', () => {
+    const b = formatRereviewReply({
+      ...base,
+      previousScore: 3,
+      previous: { fixed: ['Jeda ikut terhitung'], open: ['Total waktu salah'] },
+      added: ['Cache tidak dibersihkan'],
+    });
+    expect(b.split('\n')[0]).toBe(
+      '@xirf Menjawab [permintaan review ulang](https://github.example/o/r/pull/1#issuecomment-5): hasil review sudah diperbarui (edit) di [komentar ringkasan](https://github.example/o/r/pull/1#issuecomment-9) untuk commit `0752c3d`.',
+    );
+    expect(b).toContain('- Skor: 3/5 → 4/5');
+    expect(b).toContain('- ✅ Sudah beres (1): Jeda ikut terhitung');
+    expect(b).toContain('- ⏳ Masih ada (1): Total waktu salah');
+    expect(b).toContain('- 🆕 Temuan baru (1): Cache tidak dibersihkan');
+    expect(b).toContain('> Aman di-merge.');
+    expect(b).not.toContain(SUMMARY_MARKER);
+  });
+  it('skor sama & tanpa perubahan temuan; daftar panjang dipotong', () => {
+    expect(formatRereviewReply({ ...base, previousScore: 4 })).toContain('- Skor tetap 4/5');
+    expect(formatRereviewReply({ ...base, previousScore: 4 })).toContain('- Tidak ada perubahan temuan.');
+    const many = formatRereviewReply({ ...base, added: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] });
+    expect(many).toContain('- 🆕 Temuan baru (7): a; b; c; d; e; +2 lainnya');
+  });
+  it('review sebagian → skor dibatasi; skor lama tak diketahui tidak diklaim tetap; login aneh tidak di-mention', () => {
+    const b = formatRereviewReply({
+      ...base,
+      score: 5,
+      incomplete: true,
+      login: 'x y`@z',
+      summaryUrl: null,
+      requestUrl: null,
+    });
+    expect(b).toContain(`- Skor: ${effectiveScore(5, true)}/5 (review sebagian)`);
+    expect(b).not.toContain('tetap');
+    expect(b).not.toContain('@');
+    expect(b).toContain('komentar ringkasan Chef Juno di atas');
   });
 });
