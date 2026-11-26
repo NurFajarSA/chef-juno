@@ -98,7 +98,24 @@ EOF
 plutil -lint "$PLIST" >/dev/null
 
 # 5) muat ulang LaunchAgent
-launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" "$PLIST"
-echo "✓ LaunchAgent $LABEL dimuat → log: ~/.chefjuno/daemon.log"
+# bootout asinkron: tunggu service lama benar-benar lepas, lalu bootstrap (dengan coba ulang) — tanpa ini bootstrap
+# bisa gagal "5: Input/output error" dan mesin mati sampai dimuat manual
+DOMAIN="gui/$(id -u)"
+launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+for _ in $(seq 1 20); do launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1 || break; sleep 1; done
+loaded=0
+for _ in 1 2 3 4 5; do
+  if launchctl bootstrap "$DOMAIN" "$PLIST" 2>/dev/null; then loaded=1; break; fi
+  sleep 2
+done
+if [ "$loaded" != 1 ]; then
+  echo "✗ LaunchAgent gagal dimuat. Muat manual: launchctl bootstrap $DOMAIN $PLIST" >&2
+  exit 1
+fi
+sleep 3
+launchctl print "$DOMAIN/$LABEL" 2>/dev/null | grep -q "state = running" || {
+  echo "✗ LaunchAgent dimuat tapi daemon tidak jalan — lihat ~/.chefjuno/daemon.log" >&2
+  exit 1
+}
+echo "✓ LaunchAgent $LABEL dimuat dan berjalan → log: ~/.chefjuno/daemon.log"
 echo "  Mesin memperbarui dirinya sendiri setiap ada rilis daemon. Jangan ngoding di $DIR."
