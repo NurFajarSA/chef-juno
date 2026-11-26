@@ -16,7 +16,7 @@ import { db } from './admin.js';
 import { GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_WEBHOOK_SECRET } from './params.js';
 import { installationOctokit } from './github.js';
 import { anyMachineOnline, createJob, findActiveReview, ACTIVE_STATUSES } from './jobs.js';
-import { handlePullRequestClosed, handleReviewCommentReply } from './feedback.js';
+import { handlePullRequestClosed, handleReviewCommentReply, markStaleSummary } from './feedback.js';
 import { supersedeOlderHeads } from './cancel.js';
 import { enqueueIndex, indexBranchOf } from './indexing.js';
 import { markReverts, recordPr } from './prs.js';
@@ -100,6 +100,7 @@ export async function handleEvent(event: string, p: Payload, delivery: string): 
       if (['opened', 'reopened', 'closed', 'ready_for_review', 'edited', 'converted_to_draft'].includes(p.action))
         await recordPr(p).catch(() => undefined);
       if (p.action === 'closed') return handlePullRequestClosed(p);
+      if (p.action === 'synchronize') return `usang: ${await markStaleSummary(p)}`;
       return 'abaikan';
     case 'pull_request_review_comment':
       return p.action === 'created' ? handleReviewCommentReply(p) : 'abaikan';

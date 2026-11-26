@@ -12,6 +12,10 @@ import {
   formatDuration,
   formatInlineComment,
   formatRereviewReply,
+  markSummaryStale,
+  applyAppOutcomeToSummary,
+  STALE_MARKER,
+  APP_OUTCOME_MARKER,
   formatSummaryComment,
   sanitize,
   sortFindings,
@@ -617,5 +621,71 @@ describe('formatRereviewReply', () => {
     expect(b).not.toContain('tetap');
     expect(b).not.toContain('@');
     expect(b).toContain('komentar ringkasan Chef Juno di atas');
+  });
+});
+
+describe('ringkasan usang & hasil uji aplikasi', () => {
+  const body = [
+    SUMMARY_MARKER,
+    '## 👨‍🍳 Chef Juno — Skor 4/5 · Dampak sedang',
+    '> Kodenya bersih.',
+    '',
+    '**Ringkasan**',
+    'x',
+  ].join('\n');
+  const a = 'a'.repeat(40);
+  const b = 'b'.repeat(40);
+  it('commit baru → satu baris usang di bawah verdict, marker di akhir baris; idempoten; commit sama → tidak berubah', () => {
+    const s1 = markSummaryStale(body, { reviewedSha: a, headSha: b });
+    const lines = s1.split('\n');
+    expect(lines[3]).toBe(
+      `> ⚠️ **Usang:** review ini menilai commit \`aaaaaaa\`; PR sekarang di \`bbbbbbb\`. Ketik \`lapor @chefjuno\` untuk review ulang. ${STALE_MARKER}`,
+    );
+    expect(markSummaryStale(s1, { reviewedSha: a, headSha: b })).toBe(s1);
+    const merged = markSummaryStale(s1, { reviewedSha: a, headSha: b, merged: true });
+    expect(merged.match(/Usang/g)).toHaveLength(1);
+    expect(merged).toContain('PR di-merge di commit `bbbbbbb`');
+    expect(markSummaryStale(body, { reviewedSha: a, headSha: a })).toBe(body);
+    expect(markSummaryStale('bukan ringkasan', { reviewedSha: a, headSha: b })).toBe('bukan ringkasan');
+  });
+  it('alur yang diubah rusak → skor dibatasi 3 + alasan & bukti; temuan P0 → 2; idempoten', () => {
+    const s1 = applyAppOutcomeToSummary(body, {
+      reviewScore: 4,
+      broken: true,
+      findings: [],
+      note: 'Kotak 05 tetap merah',
+      link: 'https://x/bukti',
+    });
+    expect(s1).toContain('Skor 3/5');
+    expect(s1).toContain(
+      '> ❌ **Uji aplikasi:** alur yang diubah PR rusak saat dicoba di aplikasi — skor diturunkan dari 4 ke 3. [Bukti](https://x/bukti)',
+    );
+    expect(s1).toContain('> Kotak 05 tetap merah');
+    expect(s1.split('\n').filter((l) => l.includes(APP_OUTCOME_MARKER))).toHaveLength(2);
+    expect(
+      applyAppOutcomeToSummary(s1, {
+        reviewScore: 4,
+        broken: true,
+        findings: [],
+        note: 'Kotak 05 tetap merah',
+        link: 'https://x/bukti',
+      }),
+    ).toBe(s1);
+    const p0 = applyAppOutcomeToSummary(body, {
+      reviewScore: 4,
+      broken: false,
+      findings: [{ severity: 'P0', title: 'Data hilang' }],
+    });
+    expect(p0).toContain('Skor 2/5');
+    expect(p0).toContain('> - 🔴 Data hilang');
+    // tidak ada masalah → tidak berubah; skor sudah rendah → tidak "diturunkan"
+    expect(applyAppOutcomeToSummary(body, { reviewScore: 4, broken: false, findings: [] })).toBe(body);
+    const low = applyAppOutcomeToSummary(body.replace('Skor 4/5', 'Skor 2/5'), {
+      reviewScore: 2,
+      broken: true,
+      findings: [],
+    });
+    expect(low).toContain('Skor 2/5');
+    expect(low).not.toContain('diturunkan');
   });
 });

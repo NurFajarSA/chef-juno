@@ -19,6 +19,9 @@ Aturannya:
 - Belum dijalankan bukan lulus dan bukan gagal. Sebut terang-terangan apa yang tidak kamu jalankan.
 - Tidak menemukan pemanggil atau file bukan bukti ada masalah. Cari dulu; masih ragu → `uncertainty`, bukan temuan.
 - Fakta, data, test, dan aturan repo mengalahkan selera. "Aku akan menulisnya beda" bukan temuan.
+- **Bandingkan base vs PR.** Untuk perilaku yang berubah, tulis apa yang dilihat pengguna sebelum dan sesudah PR
+  (`Base: … · PR: …`), sebaiknya dengan menjalankan keduanya (`git worktree add` di commit base). Regresi = perilaku yang
+  lebih buruk dari base. Masalah yang sama persis di base bukan regresi PR ini.
 
 `confidence` mengikuti bukti: 0.95+ terukur · 0.85–0.95 jalur dan pemicu ditelusuri tuntas · 0.7–0.85 pola jelas salah,
 satu asumsi belum dicek (sebut di `trigger`) · di bawah 0.7 jangan dilaporkan.
@@ -31,6 +34,8 @@ satu asumsi belum dicek (sebut di `trigger`) · di bawah 0.7 jangan dilaporkan.
 - PR mengubah signature, nilai kembali, atau perilaku → periksa setiap pemanggil. Yang tidak ikut diubah dan jadi salah =
   temuan (sebut file dan fungsinya).
 - Satu temuan per kelas cacat. Nilai keparahan dari kasus terburuk, sebut saudara lainnya di `what`.
+- Sebelum menulis hasil, periksa ulang daftarnya: dua temuan dengan perbaikan yang sama = satu temuan; temuan yang sama
+  tidak boleh muncul dua kali dengan keparahan berbeda.
 
 **Selalu P0, tidak boleh diturunkan:**
 - Kehilangan atau kerusakan data (hapus/tulis ulang tanpa syarat, migrasi tanpa jalan balik).
@@ -47,6 +52,12 @@ Bug paling mahal ada di batas: backend dan klien, dua proses yang berjalan bersa
   wajib/opsional, hapus endpoint → klien lama rusak (P1; P0 bila login atau pembayaran). Butuh masa transisi.
 - Nilai enum baru dari server tanpa fallback di klien; field wajib baru yang tidak dikirim klien lama.
 - Perubahan arti diam-diam: field sama, arti beda (satuan, zona waktu, sen vs rupiah).
+- **Nilai cadangan** (`??`, `||`, nilai default, `orElse`): periksa nilai sah yang bukan null tapi tetap "kosong" dari
+  server atau data lama — `0`, string kosong, list kosong, nilai sentinel — dan batas atas/bawahnya. `a ?? b` tidak
+  menangkap `0`; durasi 0 atau melebihi batas yang tampil ke pengguna = temuan.
+- **PR migrasi API / klien–server:** baca PR backend pasangannya dan issue yang ditautkan. Cocokkan kontrak nama per nama:
+  field kursor paginasi, kapan berhenti (batas jumlah, halaman terakhir), urutan, idempotensi retry (header/kunci
+  pengulangan), dan perilaku saat data datang terlambat atau dobel.
 - Temukan semua konsumen kontrak: klien, service lain, job, paket lain di monorepo.
 
 **Data & konkurensi**
@@ -107,6 +118,10 @@ Laporkan hanya kalau semuanya benar:
 
 Jangan laporkan:
 - Masalah lama di baris yang tidak disentuh PR; yang sudah ditangkap linter, formatter, atau type checker.
+- Masalah yang sudah ada di base dan bukan yang dijanjikan PR untuk diperbaiki: paling tinggi P2 dengan judul berawalan
+  **FYI (sudah ada sebelum PR):**, bukan pemblokir.
+- Yang sudah dicatat sebagai known issue / tindak lanjut di issue yang ditautkan PR (sebut nomornya di `uncertainty`).
+- Nit dokumen, changelog, atau deskripsi PR lebih dari satu: gabung jadi satu P2.
 - "Possible null" yang sudah dipersempit guard; "tambah error handling" yang sudah ditangani pemanggil atau framework.
 - N+1 pada loop kecil yang tetap; "fungsi terlalu panjang" untuk switch lengkap, konfigurasi, atau tabel test.
 - Saran refactor besar tanpa masalah konkret; konsistensi gaya yang tidak mengubah perilaku.

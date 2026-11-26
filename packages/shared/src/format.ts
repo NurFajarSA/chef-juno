@@ -485,3 +485,66 @@ export function formatRereviewReply(o: {
   lines.push('', `> ${sanitize(o.verdict, 300)}`);
   return lines.join('\n');
 }
+
+export const STALE_MARKER = '<!-- chefjuno-ai:stale -->';
+export const APP_OUTCOME_MARKER = '<!-- chefjuno-ai:app-outcome -->';
+
+/**
+ * Sisipkan/ganti blok bertanda tepat setelah baris kutipan verdict. Marker ditaruh di AKHIR setiap baris (komentar HTML
+ * di awal baris membuka blok HTML dan merusak render markdown), jadi blok lama dikenali per baris.
+ */
+function putBlock(body: string, marker: string, block: string | null): string {
+  const lines = body.split('\n').filter((l) => !l.includes(marker));
+  if (!block) return lines.join('\n');
+  const at = lines.findIndex((l) => l.startsWith('> '));
+  const i = at >= 0 ? at + 1 : Math.min(2, lines.length);
+  lines.splice(i, 0, ...block.split('\n').map((l) => `${l} ${marker}`));
+  return lines.join('\n');
+}
+
+/**
+ * Ringkasan yang dinilai di commit lama: tandai usang supaya pembaca tidak mengira vonisnya berlaku untuk kode terbaru.
+ * Review ulang menulis ringkasan baru (tanpa tanda ini).
+ */
+export function markSummaryStale(
+  body: string,
+  o: { reviewedSha: string; headSha: string; merged?: boolean; handle?: string },
+): string {
+  if (!body.includes(SUMMARY_MARKER) || !o.reviewedSha || o.reviewedSha === o.headSha) return body;
+  const r = `\`${o.reviewedSha.slice(0, 7)}\``;
+  const h = `\`${o.headSha.slice(0, 7)}\``;
+  const text = o.merged
+    ? `> ⚠️ **Usang:** PR di-merge di commit ${h}, sedangkan review ini menilai ${r}. Commit setelahnya belum direview Chef Juno.`
+    : `> ⚠️ **Usang:** review ini menilai commit ${r}; PR sekarang di ${h}. Ketik \`lapor @${o.handle ?? 'chefjuno'}\` untuk review ulang.`;
+  return putBlock(body, STALE_MARKER, text);
+}
+
+/**
+ * Uji aplikasi menemukan alur yang diubah rusak (atau temuan baru) → ringkasan ikut berubah: skor dibatasi dan alasannya
+ * ditulis di bawah verdict. Idempoten (blok lama diganti).
+ */
+export function applyAppOutcomeToSummary(
+  body: string,
+  o: {
+    reviewScore: number;
+    broken: boolean;
+    findings: { severity: Severity; title: string }[];
+    note?: string | null;
+    link?: string | null;
+  },
+): string {
+  if (!body.includes(SUMMARY_MARKER) || (!o.broken && !o.findings.length)) return body;
+  const cap = o.findings.some((f) => f.severity === 'P0') ? 2 : 3;
+  const m = /Skor (\d)\/5/.exec(body);
+  const shown = m ? Number(m[1]) : o.reviewScore;
+  const score = Math.min(shown, cap);
+  let out = m ? body.replace(/Skor \d\/5/, `Skor ${score}/5`) : body;
+  const why = o.broken ? 'alur yang diubah PR rusak saat dicoba di aplikasi' : 'uji aplikasi menemukan masalah baru';
+  const parts = [
+    `> ❌ **Uji aplikasi:** ${why}${o.reviewScore > score ? ` — skor diturunkan dari ${o.reviewScore} ke ${score}` : ''}.${o.link ? ` [Bukti](${o.link})` : ''}`,
+  ];
+  if (o.note) parts.push(`> ${sanitize(o.note, 300)}`);
+  for (const f of o.findings.slice(0, 5)) parts.push(`> - ${SEVERITY_EMOJI[f.severity]} ${sanitize(f.title, 200)}`);
+  out = putBlock(out, APP_OUTCOME_MARKER, parts.join('\n'));
+  return out;
+}

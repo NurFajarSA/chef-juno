@@ -5,7 +5,12 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { SUMMARY_MARKER, parseUnifiedDiff } from '@chefjuno/shared';
 import { clearAuth, clearFirestore, FN_BASE } from '../helpers.js';
 import { createHarness, type Harness } from '../harness.js';
-import { sendWebhook, issueComment, pullRequestClosed } from '../../../../scripts/lib/payloads.mjs';
+import {
+  sendWebhook,
+  issueComment,
+  pullRequestClosed,
+  pullRequestSynchronize,
+} from '../../../../scripts/lib/payloads.mjs';
 import { runMaintenance } from '../../src/dispatch.js';
 
 let h: Harness;
@@ -309,6 +314,47 @@ describe('alur review end-to-end (emulator + GitHub palsu + fake agent)', () => 
     const last = (await reviewJobs()).find((d) => (d.get('result.notes') ?? []).length);
     expect(last?.get('result.postedInline')).toBe(0);
     expect(h.mock.summaryComments('tim/sample-repo', 1)[0].body).toContain('422');
+  });
+
+  it('commit baru (synchronize) → ringkasan ditandai usang (sekali); di-merge di commit lain → tanda merge', async () => {
+    const newSha = 'f'.repeat(40);
+    const summary = () => h.mock.summaryComments('tim/sample-repo', 1)[0];
+    const reviewed = h.repo.headSha.slice(0, 7);
+    const sync = pullRequestSynchronize({
+      fullName: 'tim/sample-repo',
+      repoId: 4242,
+      prNumber: 1,
+      headSha: newSha,
+      baseSha: h.repo.baseSha,
+    });
+    await sendWebhook(FN_BASE, 'pull_request', sync);
+    await h.waitFor(async () => summary().body.includes('**Usang:**'), 15_000, 'ringkasan usang');
+    const body = summary().body;
+    expect(body).toContain(`review ini menilai commit \`${reviewed}\`; PR sekarang di \`fffffff\``);
+    // tanda ada tepat di bawah verdict dan tidak merusak markdown (marker di akhir baris)
+    const lines = body.split('\n');
+    const i = lines.findIndex((l) => l.includes('**Usang:**'));
+    expect(lines[i - 1].startsWith('> ')).toBe(true);
+    expect(lines[i].startsWith('> ⚠️')).toBe(true);
+    // dikirim ulang (delivery lain) → tetap satu tanda
+    await sendWebhook(FN_BASE, 'pull_request', { ...sync, before: 'x' });
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(summary().body.match(/\*\*Usang:\*\*/g)).toHaveLength(1);
+    await sendWebhook(
+      FN_BASE,
+      'pull_request',
+      pullRequestClosed({
+        fullName: 'tim/sample-repo',
+        repoId: 4242,
+        prNumber: 1,
+        merged: true,
+        headSha: newSha,
+        baseSha: h.repo.baseSha,
+      }),
+    );
+    await h.waitFor(async () => summary().body.includes('PR di-merge di commit'), 15_000, 'tanda merge');
+    expect(summary().body.match(/\*\*Usang:\*\*/g)).toHaveLength(1);
+    expect(summary().body).toContain(`sedangkan review ini menilai \`${reviewed}\``);
   });
 
   it('PR ditutup → job review yang masih antre dibatalkan', async () => {

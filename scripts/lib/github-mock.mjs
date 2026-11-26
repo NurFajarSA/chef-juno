@@ -257,6 +257,10 @@ export class GithubMock {
       c.body = body.body;
       return { json: c };
     }
+    if ((m = /^\/repos\/([^/]+)\/([^/]+)\/issues\/comments\/(\d+)$/.exec(path)) && method === 'GET') {
+      const c = this.issueComments.find((x) => x.id === Number(m[3]));
+      return c ? { json: c } : { status: 404, json: { message: 'Not Found' } };
+    }
     if ((m = /^\/repos\/([^/]+)\/([^/]+)\/issues\/comments\/(\d+)$/.exec(path)) && method === 'PATCH') {
       const c = this.issueComments.find((x) => x.id === Number(m[3]));
       if (!c) return { status: 404, json: { message: 'Not Found' } };

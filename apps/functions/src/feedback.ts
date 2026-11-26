@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import {
   classifyOutcome,
   emptySignals,
+  markSummaryStale,
   parseAiCoderReply,
   parseUnifiedDiff,
   type FindingSignals,
@@ -79,8 +80,53 @@ export async function handlePullRequestClosed(p: any): Promise<string> {
   const state = p.pull_request.merged ? 'merged' : 'closed';
   const all = await db().collection('jobs').where('repo.id', '==', repoId).where('pr.number', '==', prNumber).get();
   for (const d of all.docs) await d.ref.update({ 'pr.state': state });
+  const stale = p.pull_request.merged ? await markStaleSummary(p).catch(() => 'gagal') : '-';
   const n = await collectFeedback(p);
-  return `dibatalkan ${q.size}; feedback ${n}`;
+  return `dibatalkan ${q.size}; feedback ${n}; usang ${stale}`;
+}
+
+/**
+ * Commit baru di PR (synchronize) atau PR di-merge di commit yang belum direview → ringkasan sticky review terakhir
+ * ditandai usang supaya vonis lama tidak dibaca sebagai vonis kode terbaru.
+ */
+export async function markStaleSummary(p: any, gh?: GH): Promise<string> {
+  const headSha = String(p.pull_request?.head?.sha ?? '');
+  if (!headSha) return 'tanpa head';
+  const jobs = await db()
+    .collection('jobs')
+    .where('repo.id', '==', Number(p.repository.id))
+    .where('pr.number', '==', Number(p.pull_request.number))
+    .get();
+  const last = jobs.docs
+    .map((d) => d.data())
+    .filter((j) => j.type === 'review' && j.status === 'posted' && j.github?.summaryCommentId)
+    .sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0))[0];
+  if (!last) return 'belum direview';
+  if (last.pr?.headSha === headSha) return 'masih terkini';
+  const [owner, repo] = String(p.repository.full_name).split('/');
+  const octo = gh ?? (await installationOctokit(Number(p.installation.id)));
+  const comment_id = Number(last.github.summaryCommentId);
+  const cur = String(
+    (
+      (await octo.request('GET /repos/{owner}/{repo}/issues/comments/{comment_id}', { owner, repo, comment_id }))
+        .data as {
+        body?: string;
+      }
+    ).body ?? '',
+  );
+  const next = markSummaryStale(cur, {
+    reviewedSha: String(last.pr.headSha),
+    headSha,
+    merged: !!p.pull_request.merged,
+  });
+  if (next === cur) return 'tidak berubah';
+  await octo.request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+    owner,
+    repo,
+    comment_id,
+    body: next,
+  });
+  return 'ditandai';
 }
 
 export async function collectFeedback(p: any, gh?: GH): Promise<number> {
