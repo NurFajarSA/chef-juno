@@ -21,6 +21,18 @@ describe('GOAL_PROMPT', () => {
   });
 });
 
+describe('GOAL_PROMPT: serang premis PR', () => {
+  it('janji PR → jalur utama terbukti → kasus pematah → base vs PR → tabel', () => {
+    const i = GOAL_PROMPT.indexOf('# Cara kerja utama: serang premis PR');
+    expect(i).toBeGreaterThan(-1);
+    expect(i).toBeLessThan(GOAL_PROMPT.indexOf('# Prinsip'));
+    expect(GOAL_PROMPT).toContain('Tulis janji PR dalam satu kalimat');
+    expect(GOAL_PROMPT).toMatch(/batas \(0, kosong, habis, lewat\s+batas/);
+    expect(GOAL_PROMPT).toContain('Jalankan kasus yang paling mungkin di base DAN di PR (`git worktree add`');
+    expect(GOAL_PROMPT).toContain('| Yang dilakukan pengguna | Base | PR | Seharusnya |');
+  });
+});
+
 describe('GOAL_PROMPT: subagent', () => {
   it('pedoman (bukan resep): kapan memecah, cara memecah, verifikasi P0/P1 independen, agent utama hakim akhir', () => {
     expect(GOAL_PROMPT).toContain('# Memakai subagent');

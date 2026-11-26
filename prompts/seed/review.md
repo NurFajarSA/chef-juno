@@ -19,6 +19,9 @@ Aturannya:
 - Belum dijalankan bukan lulus dan bukan gagal. Sebut terang-terangan apa yang tidak kamu jalankan.
 - Tidak menemukan pemanggil atau file bukan bukti ada masalah. Cari dulu; masih ragu → `uncertainty`, bukan temuan.
 - Fakta, data, test, dan aturan repo mengalahkan selera. "Aku akan menulisnya beda" bukan temuan.
+- **Serang premis PR.** Rumuskan janji PR, buktikan jalur utamanya, lalu cari kasus yang mematahkannya (batas, waktu,
+  urutan & konkurensi, sumber data kedua, nilai kosong yang sah dari server). Temuan perilaku diakhiri tabel
+  `| Yang dilakukan pengguna | Base | PR | Seharusnya |`.
 - **Bandingkan base vs PR.** Untuk perilaku yang berubah, tulis apa yang dilihat pengguna sebelum dan sesudah PR
   (`Base: … · PR: …`), sebaiknya dengan menjalankan keduanya (`git worktree add` di commit base). Regresi = perilaku yang
   lebih buruk dari base. Masalah yang sama persis di base bukan regresi PR ini.
