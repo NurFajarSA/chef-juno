@@ -20,12 +20,33 @@ Reaksi Chef Juno di komentar pemicu: 👀 diterima → 👍 diposting, 😕 gaga
 | Perintah | Fungsi |
 |---|---|
 | `chefjuno login --server <url> --code XXXX-XXXX` | Daftarkan mesin (kode dari dashboard / Setup) |
-| `chefjuno start [--agents claude,codex] [--no-app]` | Nyalakan mesin: bersihkan sisa uji aplikasi (`agentTest.cleanup`), heartbeat, ambil job. `--no-app`: mesin tanpa emulator — hanya mengambil review kode, uji aplikasi dibiarkan untuk mesin yang punya emulator |
+| `chefjuno start [--agents claude,codex] [--no-app] [--no-auto-update]` | Nyalakan mesin: bersihkan sisa uji aplikasi (`agentTest.cleanup`), heartbeat, ambil job. `--no-app`: mesin tanpa emulator — hanya mengambil review kode, uji aplikasi dibiarkan untuk mesin yang punya emulator. Mesin memperbarui dirinya ke rilis daemon (lihat di bawah); `--no-auto-update` mematikannya |
 | `chefjuno status` | Status mesin |
 | `chefjuno logout` | Hapus kredensial lokal |
 | `chefjuno memory pull --login <github>` | Tulis memory tim + kesalahan berulangmu ke file untuk agent pribadi |
 | `chefjuno memory-mcp` | Server MCP memory tim (stdio) |
 | `chefjuno graph-mcp --db <graph.db> --root <dir>` | Server MCP code map (stdio) |
+
+## Pembaruan mesin
+
+Pasang mesin dengan `bash scripts/install-machine.sh [--agents claude,codex] [--no-app]` (macOS). Daemon jalan dari
+clone khusus `~/.chefjuno/daemon` yang selalu di `main`, terpisah dari folder tempat kamu mengembangkan Chef Juno, lewat
+LaunchAgent `ai.chefjuno.daemon`. Jangan ngoding di folder itu.
+
+Prompt cara kerja agent ada di halaman **Skills** (kelompok *AGENT*) dan berlaku tanpa memperbarui mesin. Setelah
+deploy, rilis dengan:
+
+```bash
+node scripts/release.mjs --project <firebase-project> --database <id>   # commit terbaru main, CI harus hijau
+```
+
+Rilis menyinkronkan prompt bawaan (`prompts/seed/*.md`) ke registry: prompt yang dipakai tim apa adanya langsung
+pindah ke bawaan baru; prompt yang sudah diubah tim **tidak ditimpa** — bawaan baru disimpan sebagai versi yang belum
+aktif untuk dibandingkan di Skills. Lalu setiap mesin berhenti mengambil job baru, menyelesaikan job yang berjalan, maju ke commit rilis (`git merge
+--ff-only`), menjalankan `npm ci` bila `package-lock.json` berubah, build, dan menyala ulang sendiri. Mesin **tidak
+pernah menimpa pekerjaan lokal**: checkout di branch selain `main`, ada perubahan yang belum di-commit, atau punya commit
+yang tidak ada di rilis → pembaruan dilewati dan alasannya tampil di halaman **Mesin**; mesin tetap bekerja dengan
+versinya. Build gagal → kembali ke commit semula. Rilis berikutnya dicoba lagi.
 
 ## Status job
 

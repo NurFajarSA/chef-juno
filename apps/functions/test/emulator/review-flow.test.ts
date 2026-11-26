@@ -230,7 +230,15 @@ describe('alur review end-to-end (emulator + GitHub palsu + fake agent)', () => 
       n = (await posted()).length;
       await h.comment('lapor @chefjuno dalam');
       await h.waitFor(async () => (await posted()).length === n + 1, 45_000, 'review selalu dangkal');
-      last = (await posted())[0];
+      // status `posted` ditulis sebelum gate (gate menunggu commit status & job uji) → tunggu gate tertulis
+      last = await h.waitFor(
+        async () => {
+          const top = (await posted())[0];
+          return top.get('result.gate') ? top : null;
+        },
+        15_000,
+        'gate tertulis',
+      );
       expect(last.get('result.reviewCompletion')).toBe('incomplete');
       expect(last.get('result.uncertainty')).toContain('Reviewer tidak menelusuri kode');
       expect(last.get('result.gate')).toMatchObject({ verdict: 'FAIL' });

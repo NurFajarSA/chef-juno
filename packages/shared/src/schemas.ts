@@ -1,3 +1,4 @@
+import { PROMPT_KEYS } from './prompts/defaults.js';
 import { z } from 'zod';
 import { CATEGORIES, JOB_STATUSES, JOB_TYPES, SEVERITIES } from './constants.js';
 
@@ -158,7 +159,7 @@ export const MachineRegistrationInputSchema = z.object({
   name: z.string().trim().min(2, 'Nama mesin minimal 2 karakter').max(60, 'Nama mesin maksimal 60 karakter'),
 });
 
-export const PromptKeySchema = z.enum(['persona', 'review']);
+export const PromptKeySchema = z.enum(PROMPT_KEYS);
 export type PromptKey = z.infer<typeof PromptKeySchema>;
 
 export const SavePromptVersionInputSchema = z.object({

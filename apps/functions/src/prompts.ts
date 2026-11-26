@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/https';
 import { FieldValue } from 'firebase-admin/firestore';
-import { PromptKeySchema, SavePromptVersionInputSchema } from '@chefjuno/shared';
+import { DEFAULT_PROMPTS, PromptKeySchema, SavePromptVersionInputSchema } from '@chefjuno/shared';
 import { db } from './admin.js';
 import { audit, parseInput, requireMember } from './util.js';
 
@@ -11,12 +11,32 @@ export const savePromptVersion = onCall(async (req) => {
   const ref = db().doc(`prompts/${input.key}`);
   const version = await db().runTransaction(async (tx) => {
     const p = await tx.get(ref);
-    if (!p.exists) throw new HttpsError('not-found', 'Prompt tidak ada.');
-    const latest = Number(p.get('latestVersion') ?? 0);
-    const active = Number(p.get('activeVersion') ?? latest);
-    const parent = await tx.get(ref.collection('versions').doc(String(latest)));
-    if (parent.exists && parent.get('content') === input.content)
-      throw new HttpsError('failed-precondition', 'Isi sama dengan versi terakhir.');
+    // prompt agent yang belum pernah diubah belum ada di registry (mesin memakai bawaannya) → v1 = bawaan, supaya
+    // riwayat & perbandingan dimulai dari isi yang selama ini dipakai
+    const d = DEFAULT_PROMPTS[input.key];
+    let latest = Number(p.get('latestVersion') ?? 0);
+    let active = Number(p.get('activeVersion') ?? latest);
+    let parentContent: string | null;
+    if (!p.exists) {
+      tx.set(ref, { title: d.title, description: d.description, activeVersion: 1, latestVersion: 1 });
+      tx.set(ref.collection('versions').doc('1'), {
+        version: 1,
+        content: d.content,
+        message: 'Versi awal (bawaan Chef Juno)',
+        source: 'bawaan',
+        authorUid: me.uid,
+        authorLogin: me.login,
+        parentVersion: null,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      latest = 1;
+      active = 1;
+      parentContent = d.content;
+    } else {
+      const parent = await tx.get(ref.collection('versions').doc(String(latest)));
+      parentContent = parent.exists ? String(parent.get('content')) : null;
+    }
+    if (parentContent === input.content) throw new HttpsError('failed-precondition', 'Isi sama dengan versi terakhir.');
     const v = latest + 1;
     tx.create(ref.collection('versions').doc(String(v)), {
       version: v,

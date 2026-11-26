@@ -5,20 +5,18 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const ROOT = new URL('../', import.meta.url);
 const read = (k) => readFileSync(new URL(`prompts/seed/${k}.md`, ROOT), 'utf8');
+import { PROMPT_META as META } from './prompt-meta.mjs';
+const entries = META.map(
+  ([k, title, description]) =>
+    `  ${JSON.stringify(k)}: {\n    title: ${JSON.stringify(title)},\n    description: ${JSON.stringify(description)},\n    content:\n      ${JSON.stringify(read(k))},\n  },`,
+).join('\n');
 const out = `// FILE DIBUAT OTOMATIS oleh scripts/gen-default-prompts.mjs dari prompts/seed/*.md — jangan diedit manual.
 // Test packages/shared/src/prompts/defaults.test.ts memastikan isinya sama dengan file .md.
 
+export const PROMPT_KEYS = ${JSON.stringify(META.map((m) => m[0]))} as const;
+
 export const DEFAULT_PROMPTS = {
-  persona: {
-    title: 'Persona Chef Juno',
-    description: 'Karakter dan gaya bicara reviewer',
-    content: ${JSON.stringify(read('persona'))},
-  },
-  review: {
-    title: 'Instruksi review',
-    description: 'Cara mereview PR dan format temuan',
-    content: ${JSON.stringify(read('review'))},
-  },
+${entries}
 } as const;
 `;
 writeFileSync(new URL('packages/shared/src/prompts/defaults.ts', ROOT), out);

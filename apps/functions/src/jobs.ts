@@ -1,5 +1,5 @@
 import { FieldValue, Timestamp, type DocumentReference } from 'firebase-admin/firestore';
-import { DEFAULT_SETTINGS, machineStatus, type JobConfig } from '@chefjuno/shared';
+import { DEFAULT_SETTINGS, PROMPT_KEYS, machineStatus, type JobConfig } from '@chefjuno/shared';
 import { db } from './admin.js';
 import { offlineAfterMs } from './params.js';
 import { activeSkillVersions } from './skills.js';
@@ -26,9 +26,18 @@ export async function jobConfig(): Promise<JobConfig> {
   };
 }
 
-export async function activePromptVersions(): Promise<{ persona: number; review: number }> {
-  const [p, r] = await Promise.all([db().doc('prompts/persona').get(), db().doc('prompts/review').get()]);
-  return { persona: Number(p.get('activeVersion') ?? 1), review: Number(r.get('activeVersion') ?? 1) };
+/**
+ * Versi aktif setiap prompt di registry, dipin ke job saat dibuat. persona & review selalu ada (default v1); prompt cara
+ * kerja agent (method, tester, …) hanya dicatat bila sudah ada di registry — tanpa itu mesin memakai bawaannya.
+ */
+export async function activePromptVersions(): Promise<{ persona: number; review: number } & Record<string, number>> {
+  const snaps = await Promise.all(PROMPT_KEYS.map((k) => db().doc(`prompts/${k}`).get()));
+  const out: Record<string, number> = { persona: 1, review: 1 };
+  snaps.forEach((s, i) => {
+    const v = Number(s.get('activeVersion') ?? 0);
+    if (v > 0) out[PROMPT_KEYS[i]] = v;
+  });
+  return out as { persona: number; review: number } & Record<string, number>;
 }
 
 export async function anyMachineOnline(nowMs = Date.now()): Promise<boolean> {

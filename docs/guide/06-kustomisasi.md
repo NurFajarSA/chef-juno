@@ -22,6 +22,11 @@ versi, dan status bar. Skill dikelompokkan: **SKILL INTI**, **SKILL DOMAIN**, da
   konkurensi, keamanan, desain dari domain, migrasi tuntas, test, sinyal vs noise, memory tim, kelengkapan & skor, dan cara
   menulis temuan. Isinya standar, bukan urutan langkah: agent memakainya sesuai PR. Ubah di sini untuk menyesuaikan
   standar tim.
+- **Prompt agent** (kelompok *AGENT · cara kerja di mesin*): cara kerja agent di mesin — `method.md` (reviewer mode
+  tujuan: serang premis PR, prinsip, subagent, batas), `tester.md` (penguji aplikasi), `tester-plan.md`,
+  `tester-judge.md`, dan `triage.md` / `validate.md` / `final.md` untuk pipeline lama. Berversi seperti prompt inti dan
+  **dipin ke job saat dibuat**, jadi perubahan berlaku di semua mesin tanpa memperbarui daemon. Prompt yang belum pernah
+  diubah memakai bawaan Chef Juno; simpan pertama membuat v1 = bawaan, lalu versimu.
 - **Skill** memakai format skill Claude Code: satu folder per skill berisi `SKILL.md` dengan frontmatter, plus file pendukung.
 
 ### Tidak ada skill bawaan

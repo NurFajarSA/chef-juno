@@ -31,6 +31,8 @@ interface MachineRow {
   lastSeenAtMs: number | null;
   platform: string;
   daemonVersion: string;
+  daemonCommit: string;
+  update: { status: string; reason: string | null; target: string } | null;
   concurrency: number;
   currentJobIds: string[];
   revoked: boolean;
@@ -62,7 +64,8 @@ interface MachineRow {
             <table mat-table [dataSource]="rows()" data-testid="machines-table">
               <ng-container matColumnDef="name">
                 <th mat-header-cell *matHeaderCellDef>Nama</th>
-                <td mat-cell *matCellDef="let m"><strong>{{ m.name }}</strong><div class="cj-muted small">{{ m.ownerLogin ? '@' + m.ownerLogin : '' }} {{ m.platform }}</div></td>
+                <td mat-cell *matCellDef="let m"><strong>{{ m.name }}</strong><div class="cj-muted small">{{ m.ownerLogin ? '@' + m.ownerLogin : '' }} {{ m.platform }}{{ m.daemonCommit ? ' · ' + m.daemonCommit.slice(0, 7) : '' }}</div>
+                  @if (updateLabel(m); as u) {<div class="small" [class.cj-muted]="!u.warn" [attr.data-testid]="'machine-update-' + m.id" [title]="m.update?.reason ?? ''">{{ u.text }}</div>}</td>
               </ng-container>
               <ng-container matColumnDef="status">
                 <th mat-header-cell *matHeaderCellDef>Status</th>
@@ -142,6 +145,10 @@ export class MachinesPage {
       lastSeenAtMs: toMs(d['lastSeenAt']),
       platform: d['platform'] ?? '',
       daemonVersion: d['daemonVersion'] ?? '',
+      daemonCommit: String(d['daemonCommit'] ?? ''),
+      update: d['update']
+        ? { status: String(d['update'].status ?? ''), reason: d['update'].reason ?? null, target: String(d['update'].target ?? '') }
+        : null,
       concurrency: d['concurrency'] ?? 1,
       currentJobIds: d['currentJobIds'] ?? [],
       revoked: !!d['revoked'],
@@ -160,6 +167,16 @@ export class MachinesPage {
 
   protected tone = (s: MachineStatus) => STATUS_TONE[s];
   protected label = (s: MachineStatus) => MACHINE_STATUS_LABEL[s];
+  /** status pembaruan mandiri dari rilis daemon (kosong bila sudah terkini / belum pernah ada rilis) */
+  protected updateLabel(m: MachineRow): { text: string; warn: boolean } | null {
+    const u = m.update;
+    if (!u || u.status === 'current') return null;
+    const t = u.target.slice(0, 7);
+    if (u.status === 'updating' || u.status === 'restarting') return { text: `⬆ memperbarui ke ${t}…`, warn: false };
+    if (u.status === 'skipped') return { text: `⚠ pembaruan ke ${t} dilewati: ${u.reason ?? '-'}`, warn: true };
+    if (u.status === 'failed') return { text: `✗ pembaruan ke ${t} gagal: ${u.reason ?? '-'}`, warn: true };
+    return null;
+  }
   protected rel = (ms: number | null) => (ms ? fmtRelative(ms, this.now()) : 'belum pernah');
 
   add() {
