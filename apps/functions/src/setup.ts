@@ -49,6 +49,7 @@ export const setupWorkspace = onCall(async (req) => {
           version: 1,
           content: d.content,
           message: 'Versi awal (default Chef Juno)',
+          source: 'bawaan',
           authorUid: me.uid,
           authorLogin: me.login,
           parentVersion: null,

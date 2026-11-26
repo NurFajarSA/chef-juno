@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DEFAULT_PROMPTS } from '@chefjuno/shared';
+import { DEFAULT_PROMPTS, PROMPT_KEYS } from '@chefjuno/shared';
 import { admin, callFn, clearAuth, clearFirestore, idTokenFor } from '../helpers.js';
 
 // Instalasi baru: database kosong, hanya ada admin pertama (hasil bootstrap) dan satu anggota biasa.
@@ -23,14 +23,18 @@ describe('setupWorkspace (onboarding admin pertama)', () => {
     expect((await db.doc('settings/global').get()).exists).toBe(false);
   });
 
-  it('init: membuat settings default + prompt persona/review v1 (tanpa skill bawaan), mengembalikan link pasang GitHub App', async () => {
+  it('init: membuat settings default + semua prompt v1 (tanpa skill bawaan), mengembalikan link pasang GitHub App', async () => {
     const r = await callFn<{ created: string[]; githubAppInstallUrl: string }>(
       'setupWorkspace',
       { action: 'init' },
       adminTok,
     );
     expect(r.ok, JSON.stringify(r.error)).toBe(true);
-    expect(r.result!.created.sort()).toEqual(['prompt:persona', 'prompt:review', 'settings']);
+    // semua prompt berversi dipasang: inti (persona, review) + cara kerja agent di mesin (method, tester, …)
+    expect(r.result!.created.sort()).toEqual([...PROMPT_KEYS.map((k) => `prompt:${k}`), 'settings'].sort());
+    const method = (await db.doc('prompts/method/versions/1').get()).data()!;
+    expect(method.content).toBe(DEFAULT_PROMPTS.method.content);
+    expect(method.source).toBe('bawaan');
     // cara mereview diserahkan ke model: tidak ada skill yang dipasang
     expect((await db.collection('skills').get()).size).toBe(0);
     expect(r.result!.githubAppInstallUrl).toBe('https://github.com/apps/chefjuno-demo/installations/new');

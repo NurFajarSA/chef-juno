@@ -6,7 +6,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
-import { diffLines, diffStats, sideBySide } from '@chefjuno/shared';
+import { PROMPT_KEYS, diffLines, diffStats, sideBySide } from '@chefjuno/shared';
 import { CjCodeEditor } from '../ui/code-editor';
 import { CjSelect } from '../ui/select';
 import { AuthService } from '../core/auth.service';
@@ -100,6 +100,21 @@ function skillTree(slug: string, paths: string[]): TreeNode[] {
               <p class="hint">Prompt inti belum ada — buka Setup sebagai admin.</p>
             }
           </div>
+
+          @if (agentPrompts().length) {
+            <div class="sec">AGENT · cara kerja di mesin</div>
+            <div data-testid="skills-agent-prompts">
+              @for (p of agentPrompts(); track p.key) {
+                <button type="button" class="row file" [class.on]="active() === 'core/' + p.key + '.md'" [style.padding-left.px]="12"
+                  (click)="open('core/' + p.key + '.md')" [attr.data-prompt]="p.key" [attr.aria-current]="active() === 'core/' + p.key + '.md' ? 'true' : null">
+                  <span class="material-symbols-rounded ic core" aria-hidden="true">smart_toy</span>
+                  <span class="nm">{{ p.key }}.md</span>
+                  <span class="sub">{{ p.title }}</span>
+                  <span class="badge">v{{ p.active }}</span>
+                </button>
+              }
+            </div>
+          }
 
           <div data-testid="skills-list">
           @for (g of skillGroups(); track g.key) {
@@ -264,7 +279,7 @@ function skillTree(slug: string, paths: string[]): TreeNode[] {
             <span class="spacer"></span>
             <span>{{ dirty(id) ? '● belum disimpan' : 'tersimpan' }}</span>
           } @else {
-            <span>{{ core().length }} prompt inti · {{ skills().data.length }} skill</span>
+            <span>{{ core().length }} prompt inti · {{ agentPrompts().length }} prompt agent · {{ skills().data.length }} skill</span>
           }
         </footer>
       </section>
@@ -395,6 +410,14 @@ export class SkillsEditorPage {
     latest: Number(d['latestVersion'] ?? 1),
   }));
   protected readonly core = computed(() => CORE_KEYS.map((k) => this.prompts().data.find((p) => p.key === k)).filter((p): p is NonNullable<typeof p> => !!p));
+  /** prompt cara kerja agent di mesin (method, tester, …) — berversi seperti prompt inti, berlaku tanpa memperbarui mesin */
+  protected readonly agentPrompts = computed(() =>
+    PROMPT_KEYS.filter((k) => !(CORE_KEYS as readonly string[]).includes(k))
+      .map((k) => this.prompts().data.find((p) => p.key === k))
+      .filter((p): p is NonNullable<typeof p> => !!p),
+  );
+  /** semua prompt berversi (inti + agent) — dipakai editor untuk versi aktif/terbaru */
+  protected readonly allPrompts = computed(() => [...this.core(), ...this.agentPrompts()]);
   protected readonly skills = liveQuery(() => query(collection(this.fb.db, 'skills'), orderBy('name')), (slug, d) => ({
     slug,
     name: String(d['name'] ?? slug),
@@ -447,8 +470,8 @@ export class SkillsEditorPage {
     if (inf.kind === 'core') return this.promptVersions().data;
     return this.skillVersions().data.map((v) => ({ ...v, content: v.files[inf.path] ?? '' }));
   });
-  protected readonly activeVersion = computed(() => (this.info().kind === 'core' ? (this.core().find((p) => p.key === this.info().key)?.active ?? 1) : (this.currentSkill()?.latest ?? 1)));
-  protected readonly latestVersion = computed(() => (this.info().kind === 'core' ? (this.core().find((p) => p.key === this.info().key)?.latest ?? 1) : (this.currentSkill()?.latest ?? 1)));
+  protected readonly activeVersion = computed(() => (this.info().kind === 'core' ? (this.allPrompts().find((p) => p.key === this.info().key)?.active ?? 1) : (this.currentSkill()?.latest ?? 1)));
+  protected readonly latestVersion = computed(() => (this.info().kind === 'core' ? (this.allPrompts().find((p) => p.key === this.info().key)?.latest ?? 1) : (this.currentSkill()?.latest ?? 1)));
   protected readonly readonlyFile = computed(() => this.info().kind === 'skill' && this.info().path !== 'SKILL.md');
   protected readonly versionOpts = computed(() => this.versions().map((v) => ({ value: v.version, label: 'v' + v.version })));
 
@@ -540,7 +563,7 @@ export class SkillsEditorPage {
     if (inf.kind === 'core') {
       const base = this.baseVersion()[id];
       const vs = id === this.active() ? this.promptVersions().data : [];
-      const p = this.core().find((x) => x.key === inf.key);
+      const p = this.allPrompts().find((x) => x.key === inf.key);
       const v = vs.find((x) => x.version === (base ?? p?.active)) ?? vs[0];
       return v?.content ?? this.cachedCore[id] ?? '';
     }
@@ -575,7 +598,7 @@ export class SkillsEditorPage {
   }
   protected crumb(id: FileId) {
     const inf = parseId(id);
-    return inf.kind === 'core' ? `inti › ${inf.key}.md` : `skills › ${inf.slug} › ${inf.path.split('/').join(' › ')}`;
+    return inf.kind === 'core' ? `${(CORE_KEYS as readonly string[]).includes(inf.key) ? 'inti' : 'agent'} › ${inf.key}.md` : `skills › ${inf.slug} › ${inf.path.split('/').join(' › ')}`;
   }
 
   open(id: FileId) {

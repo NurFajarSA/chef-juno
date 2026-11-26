@@ -132,12 +132,17 @@ service cloud.firestore {
       allow read: if isMember() || (activeMachine() && id == machineId());
       // heartbeat oleh mesin itu sendiri, field terbatas
       allow update: if (activeMachine() && id == machineId()
-        && changed().hasOnly(['lastSeenAt', 'agents', 'currentJobIds', 'daemonVersion', 'platform']))
+        && changed().hasOnly(['lastSeenAt', 'agents', 'currentJobIds', 'daemonVersion', 'daemonCommit', 'update', 'platform']))
         // admin mengatur kapasitas job sekaligus (1–4) per mesin
         || (isAdmin() && changed().hasOnly(['concurrency'])
             && request.resource.data.concurrency is int
             && request.resource.data.concurrency >= 1 && request.resource.data.concurrency <= 4);
       allow create, delete: if false;
+    }
+    // rilis daemon: commit main yang harus dipakai semua mesin (ditulis lewat scripts/release-daemon.mjs)
+    match /releases/{id} {
+      allow read: if isMember() || activeMachine();
+      allow write: if false;
     }
     match /machineSecrets/{id} {
       allow read, write: if false;

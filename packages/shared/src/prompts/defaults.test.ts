@@ -1,14 +1,28 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PROMPTS } from './defaults.js';
+import { DEFAULT_PROMPTS, PROMPT_KEYS } from './defaults.js';
 
 const md = (k: string) => readFileSync(new URL(`../../../../prompts/seed/${k}.md`, import.meta.url), 'utf8');
 
 describe('DEFAULT_PROMPTS', () => {
   it('sama persis dengan prompts/seed/*.md (jalankan node scripts/gen-default-prompts.mjs bila beda)', () => {
-    expect(DEFAULT_PROMPTS.persona.content).toBe(md('persona'));
-    expect(DEFAULT_PROMPTS.review.content).toBe(md('review'));
-    expect(DEFAULT_PROMPTS.review.content.length).toBeGreaterThan(200);
+    for (const k of PROMPT_KEYS) {
+      expect(DEFAULT_PROMPTS[k].content, k).toBe(md(k));
+      expect(DEFAULT_PROMPTS[k].content.length, k).toBeGreaterThan(200);
+    }
+    // semua prompt agent di mesin ada di registry (tidak lagi tertanam di kode daemon)
+    expect([...PROMPT_KEYS]).toEqual([
+      'persona',
+      'review',
+      'method',
+      'final',
+      'triage',
+      'validate',
+      'tester',
+      'tester-plan',
+      'tester-judge',
+    ]);
+    expect(DEFAULT_PROMPTS['tester-plan'].content).toContain('{{BACKEND}}');
   });
 });
 

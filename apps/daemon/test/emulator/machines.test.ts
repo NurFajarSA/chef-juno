@@ -234,3 +234,122 @@ describe('kapasitas job sekaligus per mesin', () => {
     await d.stop();
   });
 });
+
+describe('pembaruan mandiri dari rilis daemon', () => {
+  const A = 'a'.repeat(40);
+  const B = 'b'.repeat(40);
+  const C = 'c'.repeat(40);
+  const queued = (id: string) =>
+    db.doc(`jobs/${id}`).set({
+      type: 'review',
+      status: 'queued',
+      attempts: 0,
+      config: { preferredAgent: 'any' },
+      repo: { id: 1, fullName: 'tim/a', installationId: 1 },
+      createdAt: Timestamp.now(),
+    });
+  const status = async (id: string) => (await db.doc(`jobs/${id}`).get()).get('status') as string;
+  const machine = async (id: string) => (await db.doc(`machines/${id}`).get()).data()!;
+  const waitUntil = async (fn: () => Promise<boolean>, ms = 15_000) => {
+    const end = Date.now() + ms;
+    while (Date.now() < end) {
+      if (await fn()) return;
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    throw new Error('waktu habis');
+  };
+
+  it('rilis baru → job berjalan diselesaikan, job baru tidak diambil, diperbarui saat kosong, lalu restart', async () => {
+    const c = await register();
+    const calls: string[] = [];
+    let release!: () => void;
+    const d = new Daemon({
+      creds: c,
+      runners: runners(),
+      log: () => undefined,
+      handler: async (ctx) => {
+        await new Promise<void>((r) => (release = r));
+        await db.doc(`jobs/${ctx.id}`).update({ status: 'completed' });
+      },
+      updater: {
+        head: async () => A,
+        plan: async (t) => (calls.push(`plan:${t}`), { ok: true, from: A, to: t }),
+        apply: async (p) => (calls.push(`apply:${p.to}`), { ok: true }),
+        restart: () => calls.push('restart'),
+      },
+    });
+    daemons.push(d);
+    await d.start();
+    // heartbeat melaporkan commit yang berjalan (field baru diizinkan rules)
+    await waitUntil(async () => (await machine(c.machineId)).daemonCommit === A);
+    await queued('u1');
+    await waitUntil(async () => (await status('u1')) === 'claimed');
+
+    await db.doc('releases/daemon').set({ commit: B });
+    await queued('u2');
+    await new Promise((r) => setTimeout(r, 800));
+    expect(await status('u2')).toBe('queued'); // draining: job baru tidak diambil
+    expect(calls).toEqual([]); // belum diperbarui selama job berjalan
+
+    release();
+    await waitUntil(async () => calls.includes('restart'));
+    expect(calls).toEqual([`plan:${B}`, `apply:${B}`, 'restart']);
+    expect((await machine(c.machineId)).update).toMatchObject({ target: B, status: 'restarting' });
+    expect(await status('u2')).toBe('queued'); // diambil oleh daemon versi baru setelah restart
+  });
+
+  it('pembaruan dilewati (mis. ada perubahan lokal) → alasan dicatat, mesin lanjut kerja, rilis sama tidak dicoba lagi', async () => {
+    const c = await register();
+    const calls: string[] = [];
+    const done: string[] = [];
+    const d = new Daemon({
+      creds: c,
+      runners: runners(),
+      log: () => undefined,
+      handler: async (ctx) => {
+        done.push(ctx.id);
+        await db.doc(`jobs/${ctx.id}`).update({ status: 'completed' });
+      },
+      updater: {
+        head: async () => A,
+        plan: async (t) => (calls.push(`plan:${t}`), { ok: false, reason: 'ada perubahan lokal yang belum di-commit' }),
+        apply: async () => (calls.push('apply'), { ok: true }),
+        restart: () => calls.push('restart'),
+      },
+    });
+    daemons.push(d);
+    await d.start();
+    await db.doc('releases/daemon').set({ commit: C });
+    await waitUntil(async () => (await machine(c.machineId)).update?.status === 'skipped');
+    expect((await machine(c.machineId)).update.reason).toBe('ada perubahan lokal yang belum di-commit');
+    await queued('s1');
+    await waitUntil(async () => done.includes('s1'));
+    await db.doc('releases/daemon').set({ commit: C, note: 'disentuh ulang' });
+    await new Promise((r) => setTimeout(r, 500));
+    expect(calls).toEqual([`plan:${C}`]);
+    await d.stop();
+  });
+
+  it('rilis = commit yang berjalan → tidak ada pembaruan; status "current"', async () => {
+    const c = await register();
+    const calls: string[] = [];
+    const d = new Daemon({
+      creds: c,
+      runners: runners(),
+      log: () => undefined,
+      handler: async () => undefined,
+      updater: {
+        head: async () => A,
+        plan: async () => (calls.push('plan'), { ok: false, reason: 'x' }),
+        apply: async () => (calls.push('apply'), { ok: true }),
+        restart: () => calls.push('restart'),
+      },
+    });
+    daemons.push(d);
+    await db.doc('releases/daemon').set({ commit: A });
+    await d.start();
+    await waitUntil(async () => (await machine(c.machineId)).update?.status === 'current');
+    expect(calls).toEqual([]);
+    await d.stop();
+  });
+});

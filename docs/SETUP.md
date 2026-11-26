@@ -124,7 +124,17 @@ On each machine that will review (yours or a teammate's):
 
    Use `--no-app` on machines without your app's emulator: they take code reviews and leave app tests to a machine that can run them.
 
-4. To keep it running on macOS, use a LaunchAgent that runs the `start` command with `KeepAlive`, and point its log to `~/.chefjuno/daemon.log`.
+4. On macOS, install the machine as a service with `bash scripts/install-machine.sh [--agents claude,codex] [--no-app]`.
+   It runs the daemon from a dedicated clone (`~/.chefjuno/daemon`, always on `main`, separate from any checkout you
+   develop in) through the LaunchAgent `ai.chefjuno.daemon` with `KeepAlive`, logging to `~/.chefjuno/daemon.log`.
+
+5. Machines update themselves. `start` runs a small supervisor; when you publish a release after deploying
+   (`node scripts/release.mjs --project <project-id> --database <id>`, which requires green CI on `main` and also
+   syncs the default prompts without overwriting prompts your team changed), each
+   machine finishes its running jobs, fast-forwards its checkout to the release, builds, and restarts. A checkout on
+   another branch, with uncommitted changes, or with local commits is never touched: the update is skipped and the
+   reason shows on the **Mesin** page. Agent prompts (method, tester, …) are versioned data edited on the **Skills**
+   page and need no machine update at all. Pass `--no-auto-update` to opt out.
 
 Reviews read the code only; consider a dedicated user account on machines that hold sensitive data, because a read-only sandbox can still read other files on the machine.
 

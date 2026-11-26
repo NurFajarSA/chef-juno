@@ -68,6 +68,19 @@ export interface DaemonOptions {
   runners?: AgentRunner[];
   handler?: JobHandler;
   log?: (msg: string) => void;
+  /** Pembaruan mandiri (rilis `releases/daemon`); tanpa ini mesin tidak pernah memperbarui dirinya. */
+  updater?: DaemonUpdater;
+}
+
+/** Cara mesin memperbarui dirinya (lihat updater.ts); dipisah supaya bisa diuji tanpa git/npm sungguhan. */
+export interface DaemonUpdater {
+  head(): Promise<string | null>;
+  plan(
+    target: string,
+  ): Promise<{ ok: true; from: string; to: string } | { ok: false; reason: string; upToDate?: boolean }>;
+  apply(plan: { from: string; to: string }): Promise<{ ok: true } | { ok: false; reason: string }>;
+  /** keluar supaya supervisor menyalakan kode baru */
+  restart(): void;
 }
 
 export class Daemon {
@@ -85,6 +98,15 @@ export class Daemon {
   private stopped = false;
   /** Jeda sementara pengambilan job (dipakai demo untuk menahan job tetap antre). */
   paused = false;
+  /** commit kode yang sedang berjalan (null bila bukan checkout git) */
+  commit: string | null = null;
+  /** rilis baru menunggu dipasang: berhenti mengambil job, perbarui begitu mesin kosong */
+  private draining = false;
+  private release: string | null = null;
+  private failedRelease: string | null = null;
+  private updating = false;
+  private reportedCurrent = false;
+  private unsubRelease: (() => void) | null = null;
   private lastQueued: { id: string; job: JobDoc }[] = [];
   readonly log: (msg: string) => void;
 
@@ -130,6 +152,14 @@ export class Daemon {
       },
       (err) => this.log(`listener mesin error: ${err.message}`),
     );
+    if (this.opts.updater) {
+      this.commit = await this.opts.updater.head().catch(() => null);
+      this.unsubRelease = onSnapshot(
+        doc(this.session.db, 'releases/daemon'),
+        (s) => this.onRelease(typeof s.get('commit') === 'string' ? String(s.get('commit')) : null),
+        (err) => this.log(`listener rilis error: ${err.message}`),
+      );
+    }
     await this.heartbeat();
     this.timer = setInterval(
       () => void this.heartbeat().catch((e) => this.log(`heartbeat gagal: ${e.message}`)),
@@ -149,6 +179,7 @@ export class Daemon {
       agents: this.agents,
       currentJobIds: [...this.running],
       daemonVersion: DAEMON_VERSION,
+      daemonCommit: this.commit,
       platform: `${platform()}-${arch()}`,
     });
   }
@@ -174,7 +205,8 @@ export class Daemon {
   }
 
   async tryClaim(id: string, job: JobDoc) {
-    if (this.stopped || this.paused || this.running.has(id) || this.running.size >= this.concurrency) return;
+    if (this.stopped || this.paused || this.draining || this.running.has(id) || this.running.size >= this.concurrency)
+      return;
     if (!mayClaimType(job.type, { noApp: !!this.opts.noApp, appRunning: !!this.appRunning })) return;
     const agent = this.pickAgent(job);
     if (!agent) return; // mesin hanya meng-claim job yang bisa ia kerjakan
@@ -259,8 +291,87 @@ export class Daemon {
       this.running.delete(id);
       if (this.appRunning === id) this.appRunning = null;
       await this.heartbeat().catch(() => undefined);
-      // job lain yang antre selama mesin sibuk tidak memicu snapshot baru → coba lagi
+      // rilis menunggu → perbarui bila sudah kosong; selain itu job lain yang antre selama mesin sibuk tidak memicu
+      // snapshot baru → coba lagi
+      if (this.draining) void this.maybeUpdate();
+      else this.rescan();
+    }
+  }
+
+  /** Rilis daemon berubah: commit lain dari yang berjalan → berhenti mengambil job dan perbarui saat kosong. */
+  onRelease(target: string | null) {
+    this.release = target;
+    const wanted = !!target && target !== this.commit && target !== this.failedRelease;
+    if (target && target === this.commit && !this.reportedCurrent) {
+      this.reportedCurrent = true;
+      void this.setUpdate('current');
+    }
+    if (!wanted) {
+      if (this.draining) {
+        this.draining = false;
+        this.rescan();
+      }
+      return;
+    }
+    if (!this.draining) {
+      this.draining = true;
+      this.log(
+        `⬆ rilis daemon ${target!.slice(0, 7)} tersedia — tidak mengambil job baru, diperbarui setelah job berjalan selesai`,
+      );
+    }
+    void this.maybeUpdate();
+  }
+
+  private async setUpdate(status: string, reason?: string) {
+    try {
+      await updateDoc(doc(this.session.db, `machines/${this.machineId}`), {
+        update: { target: this.release, status, reason: reason ? reason.slice(0, 300) : null, at: serverTimestamp() },
+      });
+    } catch {
+      // status pembaruan hanya informasi untuk dashboard; jangan menggagalkan pembaruan
+    }
+  }
+
+  /** Pasang rilis bila mesin kosong. Gagal/dilewati → catat alasannya, jangan coba rilis yang sama lagi, lanjut kerja. */
+  async maybeUpdate() {
+    const u = this.opts.updater;
+    if (!u || !this.draining || this.updating || this.running.size > 0 || this.stopped || !this.release) return;
+    this.updating = true;
+    const target = this.release;
+    try {
+      await this.setUpdate('updating');
+      const plan = await u.plan(target);
+      if (!plan.ok) {
+        if (!plan.upToDate) {
+          this.failedRelease = target;
+          this.log(`⚠ pembaruan ke ${target.slice(0, 7)} dilewati: ${plan.reason}`);
+          await this.setUpdate('skipped', plan.reason);
+        } else await this.setUpdate('current');
+        this.draining = false;
+        this.rescan();
+        return;
+      }
+      const res = await u.apply(plan);
+      if (!res.ok) {
+        this.failedRelease = target;
+        this.log(`✗ pembaruan ke ${target.slice(0, 7)} gagal: ${res.reason}`);
+        await this.setUpdate('failed', res.reason);
+        this.draining = false;
+        this.rescan();
+        return;
+      }
+      this.log(`✓ daemon diperbarui ke ${target.slice(0, 7)} — menyalakan ulang`);
+      await this.setUpdate('restarting');
+      await this.stop();
+      u.restart();
+    } catch (e) {
+      this.failedRelease = target;
+      this.log(`✗ pembaruan gagal: ${(e as Error).message}`);
+      await this.setUpdate('failed', (e as Error).message);
+      this.draining = false;
       this.rescan();
+    } finally {
+      this.updating = false;
     }
   }
 
@@ -273,6 +384,8 @@ export class Daemon {
     this.stopped = true;
     this.unsubMachine?.();
     this.unsubMachine = null;
+    this.unsubRelease?.();
+    this.unsubRelease = null;
     if (this.timer) clearInterval(this.timer);
     this.unsub?.();
     await this.session?.close().catch(() => undefined);

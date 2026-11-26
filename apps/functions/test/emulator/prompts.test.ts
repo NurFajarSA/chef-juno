@@ -87,4 +87,34 @@ describe('prompt versioning', () => {
     expect(recs.some((r) => String(r.system).includes('Review v2: fokus null-check.'))).toBe(true);
     expect(h.mock.summaryComments('tim/sample-repo', 1)[0].body).toContain('review v2');
   });
+
+  it('prompt cara kerja agent (method) disimpan dari dashboard → v1 bawaan + v2; job berikutnya memakainya tanpa memperbarui mesin', async () => {
+    const custom = '# Cara kerja khusus tim\nMETHOD-V2-MARKER: serang premis PR dulu.';
+    const r = await callFn<{ version: number }>(
+      'savePromptVersion',
+      { key: 'method', content: custom, message: 'cara kerja tim', activate: true },
+      member,
+    );
+    expect(r.ok, JSON.stringify(r.error)).toBe(true);
+    expect(r.result!.version).toBe(2);
+    const doc = await prompt('method');
+    expect(doc).toMatchObject({ title: 'Cara kerja reviewer', activeVersion: 2, latestVersion: 2 });
+    const v1 = (await h.db.doc('prompts/method/versions/1').get()).data()!;
+    expect(v1.content).toContain('# Cara kerja utama: serang premis PR');
+    const before = readdirSync(h.recordDir).length;
+    await h.comment('lapor @chefjuno');
+    const job = await h.waitJob((j) => j.type === 'review' && j.promptVersions?.method === 2);
+    expect(job.data.promptVersions).toMatchObject({ persona: 1, method: 2 });
+    await h.waitFor(
+      async () =>
+        readdirSync(h.recordDir)
+          .slice(before)
+          .some((f) => readFileSync(join(h.recordDir, f), 'utf8').includes('METHOD-V2-MARKER')),
+      45_000,
+      'agent memakai prompt method v2',
+    );
+    const recs = readdirSync(h.recordDir).map((f) => JSON.parse(readFileSync(join(h.recordDir, f), 'utf8')));
+    const used = recs.find((x) => String(x.system).includes('METHOD-V2-MARKER'))!;
+    expect(String(used.system)).not.toContain('# Cara kerja utama: serang premis PR');
+  });
 });
