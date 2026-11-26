@@ -439,3 +439,49 @@ export function formatAppComment(a: AppCommentInput): string {
   lines.push('', `<sub>${[dur, 'detail langkah & error di dashboard Chef Juno'].filter(Boolean).join(' · ')}</sub>`);
   return lines.join('\n');
 }
+
+/**
+ * Balasan untuk review ulang yang diminta lewat komentar. Ringkasan sticky hanya di-edit (GitHub tidak memberi
+ * notifikasi untuk edit), jadi komentar peminta dibalas: hasilnya sudah diperbarui + inti perubahan dari review lalu.
+ */
+export function formatRereviewReply(o: {
+  login?: string | null;
+  /** komentar yang meminta review ulang */
+  requestUrl?: string | null;
+  headSha: string;
+  verdict: string;
+  score: number;
+  incomplete: boolean;
+  previousScore?: number | null;
+  previous?: SummaryContext['previous'];
+  /** judul temuan yang belum ada di review sebelumnya */
+  added?: string[];
+  summaryUrl?: string | null;
+}): string {
+  const who = o.login && /^[A-Za-z0-9-]{1,39}$/.test(o.login) ? `@${o.login}` : '';
+  const req = o.requestUrl ? `[permintaan review ulang](${o.requestUrl})` : 'permintaan review ulang';
+  const where = o.summaryUrl ? `[komentar ringkasan](${o.summaryUrl})` : 'komentar ringkasan Chef Juno di atas';
+  const score = effectiveScore(o.score, o.incomplete);
+  const list = (items: string[]) =>
+    items
+      .slice(0, 5)
+      .map((t) => sanitize(t, 160))
+      .join('; ') + (items.length > 5 ? `; +${items.length - 5} lainnya` : '');
+  const lines = [
+    `${who ? `${who} ` : ''}Menjawab ${req}: hasil review sudah diperbarui (edit) di ${where} untuk commit \`${o.headSha.slice(0, 7)}\`.`,
+    '',
+    '**Inti perubahan**',
+    (o.previousScore == null
+      ? `- Skor: ${score}/5`
+      : o.previousScore !== score
+        ? `- Skor: ${o.previousScore}/5 → ${score}/5`
+        : `- Skor tetap ${score}/5`) + (o.incomplete ? ' (review sebagian)' : ''),
+  ];
+  const p = o.previous;
+  if (p?.fixed.length) lines.push(`- ✅ Sudah beres (${p.fixed.length}): ${list(p.fixed)}`);
+  if (p?.open.length) lines.push(`- ⏳ Masih ada (${p.open.length}): ${list(p.open)}`);
+  if (o.added?.length) lines.push(`- 🆕 Temuan baru (${o.added.length}): ${list(o.added)}`);
+  if (!p?.fixed.length && !p?.open.length && !o.added?.length) lines.push('- Tidak ada perubahan temuan.');
+  lines.push('', `> ${sanitize(o.verdict, 300)}`);
+  return lines.join('\n');
+}
