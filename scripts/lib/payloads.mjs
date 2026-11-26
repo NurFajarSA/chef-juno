@@ -61,6 +61,26 @@ export function pullRequestClosed({ fullName, repoId, prNumber, merged = true, h
   };
 }
 
+export function pullRequestSynchronize({ fullName, repoId, prNumber, headSha, baseSha, before = null, login = 'dev2' }) {
+  return {
+    action: 'synchronize',
+    number: prNumber,
+    before,
+    after: headSha,
+    pull_request: {
+      number: prNumber,
+      title: 'feat: cache option untuk fetchUser',
+      state: 'open',
+      merged: false,
+      user: { login, id: 2002 },
+      head: { sha: headSha, ref: 'feat/cache-user' },
+      base: { sha: baseSha, ref: 'main' },
+    },
+    repository: repoJson(fullName, repoId),
+    installation: { id: INSTALLATION_ID },
+  };
+}
+
 export function push({ fullName, repoId, before, after, ref = 'refs/heads/main' }) {
   return { ref, before, after, repository: repoJson(fullName, repoId), installation: { id: INSTALLATION_ID }, commits: [] };
 }

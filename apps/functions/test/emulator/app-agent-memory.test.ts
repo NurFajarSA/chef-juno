@@ -77,6 +77,9 @@ describe('memory Chef Juno & uji aplikasi oleh agent', () => {
       '## Memory Chef Juno (fakta yang sudah dipelajari)\n- akun uji butuh langganan premium',
     );
     expect(tester.prompt).toContain('## Instruksi tim untuk uji aplikasi\nfake: jalankan app lewat skill verify');
+    // penguji diberi commit base untuk membandingkan perilaku base vs PR
+    expect(tester.prompt).toMatch(/## Commit base\n[0-9a-f]{40} \(folder job: \S+\)/);
+    expect(tester.system).toContain('Bandingkan dengan base');
 
     // hasil uji di review induk: alur yang diubah berjalan normal + temuan terbukti, screenshot tersimpan
     const parent = (await h.db.doc(`jobs/${review.id}`).get()).data()!;

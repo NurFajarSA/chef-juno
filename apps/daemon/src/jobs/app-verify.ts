@@ -153,6 +153,12 @@ Cara kerja:
    lagi. Cari tahu nama tombol/rute dari kode, bukan menebak. Kalau brief punya bagian "Alur yang diubah PR" dan
    "Cara mencoba" dari penulis, itu daftar layar yang wajib kamu coba semuanya beserta akun, data, dan langkahnya —
    tetap periksa daftar file: layar lain yang memakai kode yang berubah juga dicoba. Sebut layar yang tidak sempat.
+   Bandingkan dengan base: kalau yang kamu lihat di alur yang diubah tampak salah, atau kamu ragu apakah perilaku itu
+   baru dari PR, jalankan alur yang sama di commit base (bagian "Commit base") di worktree terpisah — mis.
+   \`git -C <worktree PR> worktree add <folder job>/base <sha base>\` — dengan data yang sama. Tulis di note dalam
+   bentuk "Base: … · PR: …". Kerusakan yang sama persis di base dan bukan yang dijanjikan PR untuk diperbaiki =
+   sudah ada sebelum PR: sebut di note, jangan dijadikan reproduced. Hapus worktree base setelah selesai
+   (\`git worktree remove --force\`).
 3. Data uji: kalau layar yang perlu dicoba masih kosong atau datanya belum ada (mis. riwayat kuis untuk laporan &
    grafik, soal dengan penilaian khusus), SIAPKAN SENDIRI datanya sebelum menguji — itu bagian dari tugasmu, jangan
    berhenti di "data kosong". Cari tahu bentuk datanya dari kode (model, repository, query), lalu buat lewat UI atau
@@ -264,6 +270,7 @@ async function runAgentAppTest(
     const userPrompt = [
       o.prBrief,
       `## Worktree PR\n${o.headWorktree}`,
+      `## Commit base\n${o.baseSha} (folder job: ${o.jobDir})`,
       `## Simpan screenshot ke\n${out}`,
       at.readFirst.length ? `## Baca dulu\n${at.readFirst.map((p) => `- ${p}`).join('\n')}` : '',
       at.instructions ? `## Instruksi tim untuk uji aplikasi\n${at.instructions}` : '',

@@ -1,6 +1,12 @@
 import { FieldValue, type DocumentReference } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
-import { APP_MARKER, formatAppComment, formatInlineComment, type ReviewFinding } from '@chefjuno/shared';
+import {
+  APP_MARKER,
+  applyAppOutcomeToSummary,
+  formatAppComment,
+  formatInlineComment,
+  type ReviewFinding,
+} from '@chefjuno/shared';
 import { db } from './admin.js';
 import { installationOctokit, type GH } from './github.js';
 import { evidenceLink } from './post.js';
@@ -133,6 +139,38 @@ export async function applyAppVerifyResult(ref: DocumentReference, job: Job, gh?
       skipped: (av.skipped ?? []) as { title: string; reason: string }[],
     }),
   );
+
+  // alur rusak / temuan baru dari uji → ringkasan ikut: skor dibatasi + alasannya di bawah verdict (bukan hanya status)
+  const broken = av.ran && av.change?.status === 'reproduced';
+  const fresh = findings.filter((f) => !f.findingId && f.evidence?.status === 'reproduced');
+  const summaryId = Number(parent.github?.summaryCommentId ?? 0);
+  if ((broken || fresh.length) && summaryId) {
+    try {
+      const cur = (
+        await octo.request('GET /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+          owner,
+          repo,
+          comment_id: summaryId,
+        })
+      ).data as { body?: string };
+      const next = applyAppOutcomeToSummary(String(cur.body ?? ''), {
+        reviewScore: Number(parent.result?.score ?? 5),
+        broken: !!broken,
+        findings: fresh.map((f) => ({ severity: f.severity, title: f.title })),
+        note: broken ? (av.change?.note ?? null) : null,
+        link: av.change?.shots?.[0] ? evidenceLink(parentRef.id, { evidence: av.change }) : null,
+      });
+      if (next !== cur.body)
+        await octo.request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+          owner,
+          repo,
+          comment_id: summaryId,
+          body: next,
+        });
+    } catch (e) {
+      logger.warn('gagal memperbarui ringkasan dengan hasil uji', { err: String(e) });
+    }
+  }
 
   // gate akhir
   const code = (parent.result?.gate ?? { verdict: 'PASS', description: 'PASS' }) as {
