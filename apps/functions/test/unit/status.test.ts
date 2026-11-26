@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gateVerdict } from '../../src/status.js';
+import { appGate, gateVerdict } from '../../src/status.js';
 
 describe('gate commit status "Chef Juno"', () => {
   it('ada P0/P1 → FAIL; hanya P2 → PASS+NOTES; kosong → PASS', () => {
@@ -24,5 +24,27 @@ describe('gate commit status "Chef Juno"', () => {
   it('review sebagian tidak pernah lulus, walau tanpa temuan', () => {
     expect(gateVerdict([], { incomplete: true, score: 3 })).toMatchObject({ verdict: 'FAIL', state: 'failure' });
     expect(gateVerdict([], { incomplete: true, score: 3 }).description).toBe('FAIL · review sebagian · skor 3/5');
+  });
+});
+
+describe('appGate: repo tanpa uji aplikasi', () => {
+  it('tidak berlaku → mengikuti review kode (PASS → success, FAIL → failure), bukan "belum teruji"', () => {
+    const na = { ran: false, reason: 'repo tidak dikonfigurasi untuk uji aplikasi', notApplicable: true };
+    expect(appGate({ verdict: 'PASS', description: 'PASS · skor 5/5' }, na)).toEqual({
+      verdict: 'PASS',
+      state: 'success',
+      description: 'PASS · skor 5/5 · tanpa uji aplikasi',
+    });
+    expect(appGate({ verdict: 'FAIL', description: 'FAIL · 1 P1' }, na)).toMatchObject({
+      verdict: 'FAIL',
+      state: 'failure',
+    });
+    // dilewati karena masalah lingkungan tetap "belum teruji"
+    expect(
+      appGate({ verdict: 'PASS', description: 'PASS' }, { ran: false, reason: 'akun testing belum diatur' }),
+    ).toMatchObject({
+      verdict: 'UNTESTED',
+      state: 'error',
+    });
   });
 });

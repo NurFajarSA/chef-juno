@@ -165,7 +165,7 @@ const QUIET_APP_SKIPS = ['dimatikan di Pengaturan', 'tidak ada temuan P0/P1 yang
 
 /** Satu baris 🧪 di ringkasan: hasil uji aplikasi, atau alasan dilewati karena masalah lingkungan. */
 export function appVerifyLine(a: SummaryContext['appVerify']): string | null {
-  if (!a) return null;
+  if (!a || (a as { notApplicable?: boolean }).notApplicable) return null;
   const where = a.backend === 'emulator' ? ' (emulator lokal)' : '';
   if (a.ran) {
     const sc = a.scenarios ?? [];
