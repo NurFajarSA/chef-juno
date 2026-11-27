@@ -63,6 +63,15 @@ describe('planUpdate', () => {
     git(t.local, 'reset', '-q', '--hard', t.second);
     expect(await planUpdate(t.local, t.second)).toMatchObject({ ok: false, upToDate: true });
   });
+  it('checkout sudah di depan rilis (dipasang dari main setelah rilis) → upToDate, bukan dilewati', async () => {
+    const t = setup();
+    git(t.local, 'reset', '-q', '--hard', t.second);
+    expect(await planUpdate(t.local, t.first)).toEqual({
+      ok: false,
+      reason: 'sudah lebih baru dari commit rilis',
+      upToDate: true,
+    });
+  });
   it('tidak pernah menimpa pekerjaan lokal: branch lain, perubahan belum di-commit, commit lokal', async () => {
     const a = setup();
     git(a.local, 'switch', '-q', '-c', 'fitur');
