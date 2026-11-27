@@ -52,6 +52,9 @@ export async function planUpdate(root: string, target: string, r: Run = run): Pr
   if (f.code !== 0) return { ok: false, reason: `git fetch gagal: ${f.out.trim().slice(0, 200)}` };
   if ((await r('git', ['cat-file', '-e', `${target}^{commit}`], root)).code !== 0)
     return { ok: false, reason: 'commit rilis tidak ditemukan di origin' };
+  // Dipasang dari main setelah rilis dibuat → sudah memuat rilis; bukan pekerjaan lokal yang perlu dilindungi.
+  if ((await r('git', ['merge-base', '--is-ancestor', target, head], root)).code === 0)
+    return { ok: false, reason: 'sudah lebih baru dari commit rilis', upToDate: true };
   if ((await r('git', ['merge-base', '--is-ancestor', head, target], root)).code !== 0)
     return { ok: false, reason: 'checkout lokal punya commit yang tidak ada di rilis' };
   return { ok: true, from: head, to: target };
